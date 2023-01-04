@@ -4,7 +4,7 @@
     <groupId>com.fizzed</groupId>
     <artifactId>blaze-buildx</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>blaze-buildx</name>
   
     <parent>
@@ -16,7 +16,8 @@
     <scm>
         <url>https://github.com/fizzed/blaze-buildx</url>
         <connection>scm:git:git@github.com:fizzed/blaze-buildx.git</connection>
-    </scm>
+      <tag>v0.0.1</tag>
+  </scm>
     
     <properties>
         <java.version>1.8</java.version>
