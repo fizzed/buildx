@@ -1,4 +1,4 @@
-# Java Native Extractor by Fizzed
+# Blaze Buildx by Fizzed
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.fizzed/blaze-buildx?style=flat-square)](https://mvnrepository.com/artifact/com.fizzed/blaze-buildx)
 
