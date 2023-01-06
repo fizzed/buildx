@@ -47,6 +47,30 @@ If you'd like to try various Java system properties to see what they'd look like
     jshell
     System.getProperties().forEach((k, v) -> { System.out.printf("%s: %s\n", k, v); })
 
+## Build Environments
+
+All machines will need to be accessible via SSH and include just a handful of tools. This will work across operating
+systems, including Windows.
+
+### Windows
+
+ - Setup a user account with no SPACE character in its name. Instead of "Henry Ford" something like "builder"
+ - Enable the optional windows feature for "Openssh Server". This will only be available by default for Windows 10+
+ - Rsync is critical. One way of adding it is to install Cygwin for 64-bit windows (cygwin.com)
+ - When prompted for a package to install, search for rsync (and any others you'd like to add)
+ - If you installed cygwin to C:\cygwin64 then add C:\cygwin64\bin to your system PATH environment variable
+ - Install JDKs
+ - Install Maven (or your preferred java project build tool)
+ - Setup password-less ssh. Be VERY CAREFUL when adding your public key to your ~/.ssh/authorized_keys file
+   - If you're an administrator, the default sshd_config config uses a global authorized keys file.
+   - Open up C:\ProgramData\ssh\sshd_config as an adminstrator
+   - If you comment that out and restart the ssh server, you can now create ~/.ssh/authorized_keys manually.
+   - Also, allow UserPermitEnvironment to yes
+   - Make sure to do this ON the box (and not via ssh) so that your permissions are correct
+   - You may also want to make powershell your default shell when logging in https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_server_configuration
+   - Run "net stop sshd" and "net start sshd" to restart the daemon
+   - NOTE: if passwordless ssh isn't working, the culprit is mostly likely that your authorized_keys file has bad permissions and windows will QUIETLY ignore it
+
 ## License
 
 Copyright (C) 2023+ Fizzed, Inc.
