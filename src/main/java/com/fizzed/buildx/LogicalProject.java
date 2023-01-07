@@ -1,14 +1,18 @@
-package com.fizzed.blaze.buildx;
+package com.fizzed.buildx;
 
+import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
+import org.slf4j.Logger;
 
 import java.nio.file.Path;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 
 public class LogicalProject {
+    private final Logger log = Contexts.logger();
+
     private final Target target;
     private final String containerPrefix;
     private final Path absoluteDir;
@@ -16,8 +20,9 @@ public class LogicalProject {
     private final String remoteDir;
     private final boolean container;
     private final SshSession sshSession;
+    private final String pathSeparator;
 
-    public LogicalProject(Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession) {
+    public LogicalProject(Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
         this.target = target;
         this.containerPrefix = containerPrefix;
         this.absoluteDir = absoluteDir;
@@ -25,6 +30,7 @@ public class LogicalProject {
         this.remoteDir = remoteDir;
         this.container = container;
         this.sshSession = sshSession;
+        this.pathSeparator = pathSeparator;
     }
 
     public String getContainerName() {
@@ -55,6 +61,10 @@ public class LogicalProject {
         return this.container;
     }
 
+    public String getPathSeparator() {
+        return pathSeparator;
+    }
+
     // helpers
 
     public String relativePath(String path) {
@@ -62,10 +72,22 @@ public class LogicalProject {
     }
 
     public String remotePath(String path) {
+        return this.remotePath(path, true);
+    }
+
+    public String remotePath(String path, boolean pathSeparatorAdjusted) {
         if (this.remoteDir == null) {
             throw new RuntimeException("Project is NOT remote (no remoteDir)");
         }
-        return this.remoteDir + "/" + path;
+
+        String remotePath = this.remoteDir + "/" + path;
+
+        // do we need to fix the path provided?
+        if (pathSeparatorAdjusted) {
+            remotePath = remotePath.replace("/", this.pathSeparator);
+        }
+
+        return remotePath;
     }
 
     public String actionPath(String path) {
@@ -117,13 +139,19 @@ public class LogicalProject {
     }
 
     public Exec rsync(String sourcePath, String destPath) {
+        String src = null;
+        String dest = this.relativePath(destPath);
+
         // is remote?
         if (this.sshSession != null) {
             // rsync the project target/output to the target project
-            return Systems.exec("rsync", "-avrt", "--delete", "--progress", this.target.getSshHost() + ":" + this.remotePath(sourcePath), this.relativePath(destPath));
+            src = this.target.getHost() + ":" + this.remotePath(sourcePath, false);
         } else {
             // local execute
-            return Systems.exec("rsync", "-avrt", "--delete", "--progress", this.relativePath(sourcePath), this.relativePath(destPath));
+            src = this.relativePath(sourcePath);
         }
+
+        log.info("Rsyncing {} -> {}", src, dest);
+        return Systems.exec("rsync", "-avrt", "--delete", "--progress", src, dest);
     }
 }

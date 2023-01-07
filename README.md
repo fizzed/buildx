@@ -52,6 +52,16 @@ If you'd like to try various Java system properties to see what they'd look like
 All machines will need to be accessible via SSH and include just a handful of tools. This will work across operating
 systems, including Windows.
 
+### Testing SSH Environment Variables
+
+Blaze SSH will execute commands outside of a normal "shell" environment. Your environment variables that are present
+may not be exactly what you'd expect or the same as you SSH'ing into the box.  To test this try:
+
+     ssh YOUR-HOST-HERE env
+
+That will run the environment command on the remote machine, but using an SSH exec, instead of it being done by 
+requesting a shell.
+
 ### Windows
 
  - Setup a user account with no SPACE character in its name. Instead of "Henry Ford" something like "builder"
