@@ -11,7 +11,8 @@ Blaze plugin for building projects across machines, hosts, and containers.
 ## Usage
 
 You'll need to use a [Blaze](https://github.com/fizzed/blaze) project and leverage this dependency to take advantage.
-For a real world use, please check out https://github.com/fizzed/tokyocabinet/blob/master/setup/blaze.java
+For a real world use, please check out https://github.com/fizzed/tokyocabinet/blob/master/setup/blaze.java and
+https://github.com/fizzed/tkrzw/blob/master/setup/blaze.java
 
 ## Multiple Architecture Containers
 
