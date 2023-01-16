@@ -60,6 +60,11 @@ may not be exactly what you'd expect or the same as you SSH'ing into the box.  T
 
      ssh YOUR-HOST-HERE env
 
+If you run a shell script once you ssh into your host, you can add the "-l" flag to the top of your shell script, which
+will request a "login" to be run, which may set the environment variables you expect. To test this:
+
+     ssh YOUR-HOST-HERE sh -li -c "env"
+
 That will run the environment command on the remote machine, but using an SSH exec, instead of it being done by 
 requesting a shell.
 

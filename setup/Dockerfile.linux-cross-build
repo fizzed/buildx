@@ -1,0 +1,44 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+RUN apt -y install build-essential libtool autoconf
+
+RUN apt -y install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi binutils-arm-linux-gnueabi \
+  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabi binutils-arm-linux-gnueabihf \
+  gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+# Only available on ubuntu 18.04+
+RUN if [ ! -z "$(grep "18.04\|20.04\|22.04" /etc/lsb-release)" ]; then apt -y install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu; fi
+
+# Cross compilers for various architectures w/ musl (https://musl.cc/#binaries)
+RUN mkdir -p /opt
+
+# Install x86_64-linux-musl
+RUN wget https://musl.cc/x86_64-linux-musl-cross.tgz && \
+  tar zxvf x86_64-linux-musl-cross.tgz && \
+  mv x86_64-linux-musl-cross /opt/
+RUN chmod 777 /opt/x86_64-linux-musl-cross
+
+# Install aarch64-linux-musl
+RUN wget https://musl.cc/aarch64-linux-musl-cross.tgz && \
+  tar zxvf aarch64-linux-musl-cross.tgz && \
+  mv aarch64-linux-musl-cross /opt/
+RUN chmod 777 /opt/aarch64-linux-musl-cross
+
+# Fix x86_64 so it's setup in a similar way as arch64-linux-gnu
+#RUN mkdir /usr/x86_64-linux-gnu
+#RUN ln -s /usr/lib/x86_64-linux-gnu /usr/x86_64-linux-gnu/lib
+#RUN ln -s /usr/include/x86_64-linux-gnu /usr/x86_64-linux-gnu/include
+#RUN chmod -R 777 /usr/x86_64-linux-gnu
+
+# Fix permissions so libs and includes can be installed
+RUN chmod -R 777 /usr/lib
+RUN chmod -R 777 /usr/include
+RUN chmod -R 777 /usr/share
+RUN chmod -R 777 /usr/aarch64-linux-gnu
+RUN chmod -R 777 /usr/arm-linux-gnueabihf
+RUN chmod -R 777 /usr/arm-linux-gnueabi
+RUN if [ -d /usr/riscv64-linux-gnu ]; then chmod -R 777 /usr/riscv64-linux-gnu; fi
+
+ENV PATH="${PATH}:/opt/x86_64-linux-musl-cross/bin:/opt/aarch64-linux-musl-cross/bin"
