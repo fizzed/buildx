@@ -9,7 +9,7 @@ docker build -f setup/Dockerfile.linux --progress=plain \
 
 docker push fizzed/buildx:amd64-ubuntu16-jdk11
 
-# x64, ubuntu 18.04, jdk11 (we need this for riscv64 cross build)
+# x64, ubuntu 18.04, jdk11
 docker build -f setup/Dockerfile.linux --progress=plain \
   --build-arg FROM_IMAGE=amd64/ubuntu:18.04 \
   --build-arg JAVA_VERSION=11 \
@@ -25,6 +25,14 @@ docker build -f setup/Dockerfile.linux --progress=plain \
 
 docker push fizzed/buildx:arm64v8-ubuntu16-jdk11
 
+# aarch64, ubuntu 18.04, jdk11
+docker build -f setup/Dockerfile.linux --progress=plain \
+  --build-arg FROM_IMAGE=arm64v8/ubuntu:18.04 \
+  --build-arg JAVA_VERSION=11 \
+  -t fizzed/buildx:arm64v8-ubuntu18-jdk11 setup
+
+docker push fizzed/buildx:arm64v8-ubuntu18-jdk11
+
 # armhf, ubuntu 16.04, jdk11
 docker build -f setup/Dockerfile.linux --progress=plain \
   --build-arg FROM_IMAGE=arm32v7/ubuntu:16.04 \
@@ -32,6 +40,14 @@ docker build -f setup/Dockerfile.linux --progress=plain \
   -t fizzed/buildx:arm32v7-ubuntu16-jdk11 setup
 
 docker push fizzed/buildx:arm32v7-ubuntu16-jdk11
+
+# armhf, ubuntu 18.04, jdk11
+docker build -f setup/Dockerfile.linux --progress=plain \
+  --build-arg FROM_IMAGE=arm32v7/ubuntu:18.04 \
+  --build-arg JAVA_VERSION=11 \
+  -t fizzed/buildx:arm32v7-ubuntu18-jdk11 setup
+
+docker push fizzed/buildx:arm32v7-ubuntu18-jdk11
 
 # armel, debian 11, jdk11
 docker build -f setup/Dockerfile.linux --progress=plain \

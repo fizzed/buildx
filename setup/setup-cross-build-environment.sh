@@ -49,6 +49,9 @@ fi
 export BUILDTARGET
 export CC=$BUILDTARGET-gcc
 export CXX=$BUILDTARGET-g++
+export STRIP=$BUILDTARGET-strip
+export AR=$BUILDTARGET-ar
+export RANLIB=$BUILDTARGET-ranlib
 
 echo "BUILDTARGET: ${BUILDTARGET}"
 echo "SYSROOT: ${SYSROOT}"
@@ -57,4 +60,7 @@ echo "CXXFLAGS: ${CXXFLAGS}"
 echo "LDFLAGS: ${LDFLAGS}"
 echo "CC: ${CC}"
 echo "CXX: ${CXX}"
+echo "AR: ${AR}"
+echo "RANLIB: ${RANLIB}"
+echo "STRIP: ${STRIP}"
 echo "========================================================================================================================="
