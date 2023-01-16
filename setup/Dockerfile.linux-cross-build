@@ -41,4 +41,7 @@ RUN chmod -R 777 /usr/arm-linux-gnueabihf
 RUN chmod -R 777 /usr/arm-linux-gnueabi
 RUN if [ -d /usr/riscv64-linux-gnu ]; then chmod -R 777 /usr/riscv64-linux-gnu; fi
 
+COPY ./setup-cross-build-environment.sh /opt/
+RUN chmod 777 /opt/setup-cross-build-environment.sh
+
 ENV PATH="${PATH}:/opt/x86_64-linux-musl-cross/bin:/opt/aarch64-linux-musl-cross/bin"
