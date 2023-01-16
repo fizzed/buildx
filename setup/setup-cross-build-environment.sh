@@ -48,6 +48,7 @@ fi
 
 export BUILDTARGET
 export CC=$BUILDTARGET-gcc
+export CXX=$BUILDTARGET-g++
 
 echo "BUILDTARGET: ${BUILDTARGET}"
 echo "SYSROOT: ${SYSROOT}"
@@ -55,4 +56,5 @@ echo "CFLAGS: ${CFLAGS}"
 echo "CXXFLAGS: ${CXXFLAGS}"
 echo "LDFLAGS: ${LDFLAGS}"
 echo "CC: ${CC}"
+echo "CXX: ${CXX}"
 echo "========================================================================================================================="
