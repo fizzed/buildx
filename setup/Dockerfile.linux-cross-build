@@ -2,14 +2,25 @@ ARG FROM_IMAGE
 
 FROM ${FROM_IMAGE}
 
-RUN apt -y install build-essential libtool autoconf
+RUN apt -y install build-essential libtool autoconf apt-transport-https ca-certificates
+
+# Install latest cmake
+RUN export UBUNTU_CODENAME=$(grep "UBUNTU_CODENAME" /etc/os-release | sed 's/UBUNTU_CODENAME=//g') ; \
+  echo "Installing kitware repo for $UBUNTU_CODENAME" ; \
+  wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null ; \
+  echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null ; \
+  apt update ; \
+  apt -y install cmake
 
 RUN apt -y install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi binutils-arm-linux-gnueabi \
   gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \
   gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
 # Only available on ubuntu 18.04+
-RUN if [ ! -z "$(grep "18.04\|20.04\|22.04" /etc/lsb-release)" ]; then apt -y install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu; fi
+RUN if [ ! -z "$(grep "18.04\|20.04\|22.04" /etc/lsb-release)" ]; \
+  then echo "Installing ubuntu 18.04+ packages..." ; \
+  apt -y install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu; \
+  fi
 
 # Cross compilers for various architectures w/ musl (https://musl.cc/#binaries)
 RUN mkdir -p /opt
