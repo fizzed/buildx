@@ -1,0 +1,13 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+COPY ./install-common.sh /
+RUN /install-common.sh
+RUN rm -f /install-common.sh
+ENV RUSTUP_HOME=/opt/rustup
+ENV CARGO_HOME=/opt/cargo
+ENV PATH=/opt/cargo/bin:$PATH
+
+RUN chmod 777 $RUSTUP_HOME
+RUN chmod 777 $CARGO_HOME

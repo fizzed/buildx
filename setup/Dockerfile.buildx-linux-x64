@@ -1,0 +1,15 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+#
+# C/C++ Toolchain
+#
+ENV BUILD_TARGET=x86_64-linux-gnu
+
+#
+# Rust Toolchain
+#
+ENV RUST_TARGET=x86_64-unknown-linux-gnu
+
+# No special env vars needed

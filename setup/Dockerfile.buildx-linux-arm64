@@ -1,0 +1,32 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+#
+# C/C++ Toolchain
+#
+ENV BUILD_TARGET=aarch64-linux-gnu
+RUN apt -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross
+RUN chmod -R 777 /usr/aarch64-linux-gnu
+
+#
+# Rust Toolchain
+#
+ENV RUST_TARGET=aarch64-unknown-linux-gnu
+RUN rustup target add $RUST_TARGET
+#not sure this is actually needed based on building projects
+#RUN rustup toolchain install stable-$RUST_TARGET
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=$BUILD_TARGET-gcc
+ENV CC_aarch64_unknown_linux_gnu=$BUILD_TARGET-gcc
+ENV CXX_aarch64_unknown_linux_gnu=$BUILD_TARGET-g++
+
+ENV SYSROOT="/usr/${BUILD_TARGET}"
+ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+ENV CC=$BUILD_TARGET-gcc
+ENV CXX=$BUILD_TARGET-g++
+ENV STRIP=$BUILD_TARGET-strip
+ENV AR=$BUILD_TARGET-ar
+ENV RANLIB=$BUILD_TARGET-ranlib
+ENV PKG_CONFIG_PATH="/${SYSROOT}/pkgconfig"
