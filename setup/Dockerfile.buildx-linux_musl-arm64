@@ -1,0 +1,42 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+#
+# C/C++ Toolchain
+#
+ENV BUILD_TARGET=aarch64-linux-musl
+
+# Cross compilers for various architectures w/ musl (https://musl.cc/#binaries)
+RUN mkdir -p /opt
+RUN wget https://musl.cc/aarch64-linux-musl-cross.tgz && \
+  tar zxvf aarch64-linux-musl-cross.tgz && \
+  mv aarch64-linux-musl-cross /opt/
+RUN chmod 777 /opt/aarch64-linux-musl-cross
+ENV PATH="${PATH}:/opt/aarch64-linux-musl-cross/bin"
+
+#
+# Rust Toolchain
+#
+ENV RUST_TARGET=aarch64-unknown-linux-musl
+RUN rustup target add $RUST_TARGET
+ENV CARGO_TARGET_XAARCH64_UNKNOWN_LINUX_MUSL_LINKER=$BUILD_TARGET-gcc
+ENV AR_aarch64_unknown_linux_musl=$BUILD_TARGET-gcc
+ENV CC_aarch64_unknown_linux_musl=$BUILD_TARGET-gcc
+ENV CXX_aarch64_unknown_linux_musl=$BUILD_TARGET-g++
+
+# error: cannot produce cdylib for `shmemj v0.1.0 (/project/native)` as the target `aarch64-unknown-linux-musl` does not support these crate types
+# fixes bug with compiling cdylib
+# https://github.com/rust-lang/cargo/issues/7154
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+
+ENV SYSROOT="/usr/${BUILD_TARGET}"
+ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+ENV CC=$BUILD_TARGET-gcc
+ENV CXX=$BUILD_TARGET-g++
+ENV STRIP=$BUILD_TARGET-strip
+ENV AR=$BUILD_TARGET-ar
+ENV RANLIB=$BUILD_TARGET-ranlib
+ENV PKG_CONFIG_PATH="/${SYSROOT}/pkgconfig"

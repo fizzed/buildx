@@ -115,7 +115,7 @@ public class blaze {
                 .setImage("fizzed/buildx:x64-"+ubuntuVersion+"-jdk11-buildx")
             );
 
-            for (String osArch : asList("linux-x64", "linux_musl-x64", "linux-arm64", "linux-riscv64")) {
+            for (String osArch : asList("linux-x64", "linux_musl-x64", "linux_musl-arm64", "linux-arm64", "linux-riscv64")) {
                 // NOTE: riscv64 does not work in ubuntu16
                 if (ubuntuVersion.equals("ubuntu16") && osArch.contains("-riscv64")) {
                     continue;   // skip it
