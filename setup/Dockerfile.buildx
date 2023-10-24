@@ -3,7 +3,7 @@ ARG FROM_IMAGE
 FROM ${FROM_IMAGE}
 
 COPY ./install-common.sh /
-RUN /install-common.sh
+RUN /install-common.sh cache_buster=4
 RUN rm -f /install-common.sh
 ENV RUSTUP_HOME=/opt/rustup
 ENV CARGO_HOME=/opt/cargo

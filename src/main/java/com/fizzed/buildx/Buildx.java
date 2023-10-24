@@ -5,9 +5,14 @@ import com.fizzed.blaze.ssh.SshSession;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.fizzed.blaze.Contexts.withBaseDir;
@@ -21,9 +26,11 @@ public class Buildx {
 
     private final List<Target> targets;
     private Set<String> tags;
+    private final List<Predicate<Target>> filters;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
+        this.filters = new ArrayList<>();
     }
 
     public List<Target> getTargets() {
@@ -49,21 +56,38 @@ public class Buildx {
         return this;
     }
 
+    public Buildx onlyWithContainers() {
+        this.filters.add(Target::hasContainer);
+        return this;
+    }
+
     public void execute(ProjectExecute projectExecute) throws Exception {
         final Path relProjectDir = withBaseDir("..");
         final Path absProjectDir = relProjectDir.toRealPath();
         final String containerPrefix = Contexts.config().value("container-prefix").get();
+        final Path buildxDirectory = createBuildxDirectory(absProjectDir);
 
         final String targetsFilterConfig = Contexts.config().value("targets").orNull();
         final String tagsFilterConfig = Contexts.config().value("tags").orNull();
         final Set<String> targetsConfigFilter = this.buildFilter(targetsFilterConfig);
         final Set<String> tagsConfigFilter = this.buildFilter(tagsFilterConfig);
 
+        // validate if any targets have duplicate containers
+        final Set<String> validateContainerNames = new HashSet<>();
+        for (Target target : targets) {
+            String containerName = target.resolveContainerName(containerPrefix);
+            if (validateContainerNames.contains(containerName)) {
+                throw new IllegalStateException("Duplicate container name " + containerName + " detected for target " + target);
+            }
+            validateContainerNames.add(containerName);
+        }
+
         // build a final list of targets, applying the various filters
         final List<Target> _targets = this.targets.stream()
             .filter(v -> targetsConfigFilter == null || targetsConfigFilter.contains(v.getOsArch()))
             .filter(v -> tagsConfigFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsConfigFilter)))
             .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
+            .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
             .collect(Collectors.toList());
 
         log.info("=====================================================");
@@ -90,6 +114,9 @@ public class Buildx {
             log.info("  description: {}", ifEmpty(target.getDescription(), "none"));
             log.info("  host: {}", ifEmpty(target.getHost(), "none"));
             log.info("  containerImage: {}", ifEmpty(target.getContainerImage(), "none"));
+            if (target.hasContainer()) {
+                log.info("  containerName: {}", target.resolveContainerName(containerPrefix));
+            }
 
             final boolean container = target.getContainerImage() != null;
             LogicalProject project = null;
@@ -105,9 +132,7 @@ public class Buildx {
 
                 log.info("Connected with...");
 
-                boolean isWindows = target.getOs().contains("windows");
-
-                if (!isWindows) {
+                if (!target.isWindows()) {
                     String pwd = sshExec(sshSession, "pwd")
                         .runCaptureOutput()
                         .toString()
@@ -121,7 +146,7 @@ public class Buildx {
 
                 log.info("Will make sure remote host has project dir {}", remoteProjectDir);
 
-                if (isWindows) {
+                if (target.isWindows()) {
                     // we can ignore this, since rsync will catch it below if the dir wasn't created
                     // this can happen on windows where mkdir does not like an existing dir
                     sshExec(sshSession, "mkdir", "remote-build").exitValues(0, 1).run();
@@ -137,6 +162,8 @@ public class Buildx {
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
                 exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.temp-m2/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
+                // copy over the temp .buildx directory for resources we need on the remote side
+//                exec("rsync", "-vr", "--delete", "--progress", buildxDirectory+"/", sshHost+":"+remoteProjectDir+"/.buildx").run();
 
                 project = new LogicalProject(target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
             } else {
@@ -177,11 +204,32 @@ public class Buildx {
             }
             String name = target.getOsArch();
             if (target.getDescription() != null) {
-                name += " (" + target.getDescription() + ")";
+                name += "   (" + target.getDescription() + ")";
             }
-            log.info("{} {} s{}", padRight(name, ".", 50), SECS_FMT.format(durationSecs), appendMessage);
+            if (target.getTags() != null) {
+                name += "   " + target.getTags();
+            }
+            log.info("{} {} s{}", padRight(name, ".", 80), SECS_FMT.format(durationSecs), appendMessage);
         }
         log.info("=======================================================================================================");
+    }
+
+    static public Path createBuildxDirectory(Path projectDir) throws IOException {
+        Path buildxDir = projectDir.resolve(".buildx");
+        Files.createDirectories(buildxDir);
+        // copy resources into it
+        for (String name : asList("exec.sh", "exec.bat")) {
+            final String resourceName = "/com/fizzed/buildx/"+name;
+            try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
+                if (input == null) {
+                    throw new IOException("Resource " + resourceName + " not found");
+                }
+                Path file = buildxDir.resolve(name);
+                Files.copy(input, file, StandardCopyOption.REPLACE_EXISTING);
+                file.toFile().setExecutable(true);
+            }
+        }
+        return buildxDir;
     }
 
     static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");

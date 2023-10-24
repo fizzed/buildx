@@ -34,7 +34,7 @@ public class LogicalProject {
     }
 
     public String getContainerName() {
-        return this.containerPrefix + "-" + target.getOsArch();
+        return target.resolveContainerName(this.containerPrefix);
     }
 
     public String getContainerPrefix() {
@@ -68,7 +68,9 @@ public class LogicalProject {
     // helpers
 
     public String relativePath(String path) {
+        // we need to help retain trailing "/"'s on the path if they exist since those matter to rsync
         return this.relativeDir.resolve(".").toString() + "/" + path;
+        //return this.relativeDir.resolve(".").resolve(path).normalize().toString();
     }
 
     public String remotePath(String path) {
@@ -104,8 +106,18 @@ public class LogicalProject {
     }
 
     public Exec action(String path, Object... arguments) {
-        final String actionScript = this.actionPath(path);
-        final String username = System.getProperty("user.name");
+        // run every command in our wrapper script
+        final String actionScript = this.target.isWindows() ? this.actionPath(".buildx/exec.bat") : this.actionPath(".buildx/exec.sh");
+        // rebuild arguments now
+        final Object[] newArguments = new Object[arguments.length+1];
+        newArguments[0] = path;
+        int i = 1;
+        for (Object a : arguments) {
+            newArguments[i] = a;
+            i++;
+        }
+        arguments = newArguments;
+
 
         // is remote?
         if (this.sshSession != null) {
@@ -129,10 +141,16 @@ public class LogicalProject {
     }
 
     public Exec exec(String path, Object... arguments) {
-        final String actionScript = this.sshSession != null ? this.remotePath(path) : this.relativePath(path);
+        final String actionScript;
+        if (this.sshSession != null) {
+            actionScript = this.remotePath(path);
+        } else {
+            actionScript = this.relativePath(path);
+        }
+
         // is remote?
         if (this.sshSession != null) {
-            return sshExec(sshSession, actionScript).args(arguments);
+            return sshExec(sshSession, actionScript).args(arguments).workingDir(this.remotePath(""));
         } else {
             return Systems.exec(actionScript).args(arguments);
         }

@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/sh -e
 
 # Install common packages
 apt update
-apt -y apt-utils install build-essential libtool autoconf apt-transport-https ca-certificates
+apt -y install apt-utils build-essential libtool autoconf apt-transport-https ca-certificates g++
 
 # Install latest cmake
 export UBUNTU_CODENAME=$(grep "UBUNTU_CODENAME" /etc/os-release | sed 's/UBUNTU_CODENAME=//g')
@@ -13,6 +13,9 @@ apt update
 apt -y install cmake
 
 # Install rust
+# https://github.com/cross-rs/cross/tree/main/docker
+# https://kerkour.com/rust-cross-compilation
+# https://www.docker.com/blog/cross-compiling-rust-code-for-multiple-architectures/
 echo "Installing rust toolchain..."
 export RUSTUP_HOME=/opt/rustup
 export CARGO_HOME=/opt/cargo

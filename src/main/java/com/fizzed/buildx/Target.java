@@ -54,6 +54,10 @@ public class Target {
         return this;
     }
 
+    public boolean hasContainer() {
+        return this.getContainerImage() != null;
+    }
+
     public Set<String> getTags() {
         return tags;
     }
@@ -77,6 +81,29 @@ public class Target {
         return this.os + "-" + this.arch;
     }
 
+    public boolean isWindows() {
+        return this.os != null && this.os.contains("windows");
+    }
+
+    public String resolveContainerName(String containerPrefix) {
+        // we need to combine much more info to make it unique
+        final StringBuilder sb = new StringBuilder();
+        sb.append(containerPrefix);
+        sb.append("-");
+        sb.append(this.getOsArch());
+        if (this.description != null) {
+            sb.append("-");
+            sb.append(this.description.replace(" ", "").replace(",", ""));
+        }
+        if (this.tags != null) {
+            for (String tag : this.tags) {
+                sb.append("-");
+                sb.append(tag);
+            }
+        }
+        return sb.toString();
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getOsArch());
@@ -87,6 +114,15 @@ public class Target {
         if (this.host != null) {
             sb.append(" on host ");
             sb.append(this.host);
+        }
+        if (this.description != null) {
+            sb.append(" (");
+            sb.append(this.description);
+            sb.append(")");
+        }
+        if (this.tags != null) {
+            sb.append(" ");
+            sb.append(this.tags);
         }
         return sb.toString();
     }

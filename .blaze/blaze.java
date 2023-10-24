@@ -138,7 +138,8 @@ public class blaze {
             log.info("####### Starting {} #########", v.getImage());
             log.info("");
 
-            exec("docker", "build", "-f", v.getDockerFile(),
+            exec("docker", "build",
+                "-f", v.getDockerFile(),
                 "--build-arg", "FROM_IMAGE="+v.getFromImage(),
                 "-t", v.getImage(),
                 setupDir
@@ -158,6 +159,12 @@ public class blaze {
                 .run();
 
             exec("docker", "run", "-t", v.getImage(), "cmake", "--version")
+                .run();
+
+            exec("docker", "run", "-t", v.getImage(), "gcc", "--version")
+                .run();
+
+            exec("docker", "run", "-t", v.getImage(), "g++", "--version")
                 .run();
 
             log.info("");
