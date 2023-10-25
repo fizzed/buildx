@@ -23,22 +23,24 @@ public class blaze {
         List<Container> containers = new ArrayList<>();
 
         // ubuntu16+jdk11 architectures
-        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
+        for (String arch : asList("amd64", "i386", "arm64v8", "arm32v7")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage(arch+"/ubuntu:16.04")
                 .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-ubuntu16-jdk11")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu16-jdk11")
             );
         }
 
         // ubuntu18+jdk11 architectures
-        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
+        for (String arch : asList("amd64", "i386", "arm64v8", "arm32v7")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage(arch+"/ubuntu:18.04")
                 .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-ubuntu18-jdk11")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu18-jdk11")
             );
@@ -50,17 +52,19 @@ public class blaze {
                 .setDockerFile(dockerFileLinux)
                 .setFromImage(arch+"/ubuntu:20.04")
                 .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-ubuntu20-jdk11")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk11")
             );
         }
 
-        // ubuntu20+jdk19 architectures (was an old riscv64 test image we used)
+        // ubuntu20+jdk21 architectures (was an old riscv64 test image we used)
         for (String arch : asList("riscv64")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage(arch+"/ubuntu:20.04")
                 .setJavaVersion(21)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-ubuntu20-jdk21")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk21")
             );
@@ -72,6 +76,7 @@ public class blaze {
                 .setDockerFile(dockerFileLinux)
                 .setFromImage(arch+"/debian:11")
                 .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-debian11-jdk11")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-debian11-jdk11")
             );
@@ -84,6 +89,7 @@ public class blaze {
                     .setDockerFile(dockerFileLinux)
                     .setFromImage(arch + "/ubuntu:22.04")
                     .setJavaVersion(version)
+                    .setJavaArch(canonicalArch(arch))
                     .setImage("fizzed/buildx:" + arch + "-ubuntu22-jdk"+version)
                     .setAltImage("fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk"+version)
                 );
@@ -96,6 +102,7 @@ public class blaze {
                 .setDockerFile(dockerFileLinuxMusl)
                 .setFromImage(arch+"/alpine:3.11")
                 .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
                 .setImage("fizzed/buildx:"+arch+"-alpine3.11-jdk11")
                 .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-alpine3.11-jdk11")
             );
@@ -115,7 +122,7 @@ public class blaze {
                 .setImage("fizzed/buildx:x64-"+ubuntuVersion+"-jdk11-buildx")
             );
 
-            for (String osArch : asList("linux-x64", "linux_musl-x64", "linux_musl-arm64", "linux-arm64", "linux-riscv64")) {
+            for (String osArch : asList("linux-x64", "linux-x32", "linux_musl-x64", "linux_musl-arm64", "linux-arm64", "linux-armhf", "linux-armel", "linux-riscv64")) {
                 // NOTE: riscv64 does not work in ubuntu16
                 if (ubuntuVersion.equals("ubuntu16") && osArch.contains("-riscv64")) {
                     continue;   // skip it
@@ -192,6 +199,7 @@ public class blaze {
             exec("docker", "build", "-f", v.getDockerFile(),
                 "--build-arg", "FROM_IMAGE="+v.getFromImage(),
                 "--build-arg", "JAVA_VERSION="+v.getJavaVersion(),
+                "--build-arg", "JAVA_ARCH="+v.getJavaArch(),
                 "-t", v.getImage(),
                 "-t", v.getAltImage(),
                 setupDir
@@ -241,6 +249,7 @@ public class blaze {
         private String image;
         private String altImage;
         private Integer javaVersion;
+        private String javaArch;
 
         public Path getDockerFile() {
             return dockerFile;
@@ -284,6 +293,15 @@ public class blaze {
 
         public Container setJavaVersion(Integer javaVersion) {
             this.javaVersion = javaVersion;
+            return this;
+        }
+
+        public String getJavaArch() {
+            return javaArch;
+        }
+
+        public Container setJavaArch(String javaArch) {
+            this.javaArch = javaArch;
             return this;
         }
     }

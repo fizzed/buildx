@@ -31,13 +31,8 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
     </dependency>
     <dependency>
       <groupId>com.fizzed</groupId>
-      <artifactId>buildx</artifactId>
-      <version>0.0.2</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fizzed</groupId>
       <artifactId>jne</artifactId>
-      <version>3.3.1-SNAPSHOT</version>
+      <version>4.0.2-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

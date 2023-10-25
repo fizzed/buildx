@@ -107,22 +107,10 @@ public class Target {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getOsArch());
-        if (this.containerImage != null) {
-            sb.append(" with container ");
-            sb.append(this.containerImage);
-        }
-        if (this.host != null) {
-            sb.append(" on host ");
-            sb.append(this.host);
-        }
         if (this.description != null) {
             sb.append(" (");
             sb.append(this.description);
             sb.append(")");
-        }
-        if (this.tags != null) {
-            sb.append(" ");
-            sb.append(this.tags);
         }
         return sb.toString();
     }

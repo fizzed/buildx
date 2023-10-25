@@ -6,7 +6,7 @@ FROM ${FROM_IMAGE}
 # C/C++ Toolchain
 #
 ENV BUILD_TARGET=riscv64-linux-gnu
-RUN apt -y install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
+RUN apt -y install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu libc6-riscv64-cross libc6-dev-riscv64-cross
 RUN chmod -R 777 /usr/riscv64-linux-gnu
 
 #
@@ -15,6 +15,7 @@ RUN chmod -R 777 /usr/riscv64-linux-gnu
 ENV RUST_TARGET=riscv64gc-unknown-linux-gnu
 RUN rustup target add $RUST_TARGET
 ENV CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER=$BUILD_TARGET-gcc
+ENV AR_riscv64gc_unknown_linux_gnu=$BUILD_TARGET-ar
 ENV CC_riscv64gc_unknown_linux_gnu=$BUILD_TARGET-gcc
 ENV CXX_riscv64gc_unknown_linux_gnu=$BUILD_TARGET-g++
 

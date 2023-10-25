@@ -1,0 +1,20 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+ARG USERID
+ARG USERNAME
+ARG INSTALL_SCRIPT
+
+RUN adduser -D -u ${USERID} ${USERNAME}
+
+COPY ./${INSTALL_SCRIPT} /install.sh
+RUN chmod +x /install.sh
+RUN /install.sh
+RUN rm -f /install.sh
+
+USER ${USERNAME}
+
+# use cached .m2 and .ivy2
+RUN ln -s /project/.buildx-temp/m2 ~/.m2
+RUN ln -s /project/.buildx-temp/ivy2 ~/.ivy2

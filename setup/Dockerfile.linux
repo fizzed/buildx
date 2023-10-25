@@ -3,6 +3,7 @@ ARG FROM_IMAGE
 FROM ${FROM_IMAGE}
 
 ARG JAVA_VERSION
+ARG JAVA_ARCH
 
 RUN apt update -y
 RUN apt -y install unzip gzip wget curl git rsync libatomic1
@@ -20,7 +21,7 @@ ENV LC_ALL en_US.UTF-8
 RUN curl -s https://raw.githubusercontent.com/jjlauer/provisioning/master/linux/bootstrap-maven.sh | sh -s -- --version=3.9.5
 
 # Install jdk w/ a specific version
-RUN curl -s https://raw.githubusercontent.com/jjlauer/provisioning/master/linux/bootstrap-java.sh | sh -s -- --version=${JAVA_VERSION}
+RUN curl -s https://raw.githubusercontent.com/jjlauer/provisioning/master/linux/bootstrap-java.sh | sh -s -- --version=${JAVA_VERSION} --arch=${JAVA_ARCH}
 
 ENV M2_HOME="/opt/maven/current"
 ENV JAVA_HOME="/usr/lib/jvm/current"

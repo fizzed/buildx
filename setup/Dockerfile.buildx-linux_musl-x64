@@ -21,7 +21,7 @@ ENV PATH="${PATH}:/opt/x86_64-linux-musl-cross/bin"
 ENV RUST_TARGET=x86_64-unknown-linux-musl
 RUN rustup target add $RUST_TARGET
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=$BUILD_TARGET-gcc
-ENV AR_x86_64_unknown_linux_musl=$BUILD_TARGET-gcc
+ENV AR_x86_64_unknown_linux_musl=$BUILD_TARGET-ar
 ENV CC_x86_64_unknown_linux_musl=$BUILD_TARGET-gcc
 ENV CXX_x86_64_unknown_linux_musl=$BUILD_TARGET-g++
 

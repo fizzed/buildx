@@ -5,21 +5,22 @@ FROM ${FROM_IMAGE}
 #
 # C/C++ Toolchain
 #
-ENV BUILD_TARGET=aarch64-linux-gnu
-RUN apt -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross
-RUN chmod -R 777 /usr/aarch64-linux-gnu
+RUN echo "Bust cache..."
+ENV BUILD_TARGET=arm-linux-gnueabihf
+RUN apt -y install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf libc6-armhf-cross libc6-dev-armhf-cross
+RUN chmod -R 777 /usr/arm-linux-gnueabihf
 
 #
 # Rust Toolchain
 #
-ENV RUST_TARGET=aarch64-unknown-linux-gnu
+ENV RUST_TARGET=armv7-unknown-linux-gnueabihf
 RUN rustup target add $RUST_TARGET
 #not sure this is actually needed based on building projects
 #RUN rustup toolchain install stable-$RUST_TARGET
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=$BUILD_TARGET-gcc
-ENV AR_aarch64_unknown_linux_gnu=$BUILD_TARGET-ar
-ENV CC_aarch64_unknown_linux_gnu=$BUILD_TARGET-gcc
-ENV CXX_aarch64_unknown_linux_gnu=$BUILD_TARGET-g++
+ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=$BUILD_TARGET-gcc
+ENV AR_armv7_unknown_linux_gnueabihf=$BUILD_TARGET-ar
+ENV CC_armv7_unknown_linux_gnueabihf=$BUILD_TARGET-gcc
+ENV CXX_armv7_unknown_linux_gnueabihf=$BUILD_TARGET-g++
 
 ENV SYSROOT="/usr/${BUILD_TARGET}"
 ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"

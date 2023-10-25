@@ -1,0 +1,36 @@
+ARG FROM_IMAGE
+
+FROM ${FROM_IMAGE}
+
+#
+# C/C++ Toolchain
+#
+ENV BUILD_TARGET=i686-linux-gnu
+RUN apt -y install libc6-i386 libc6-dev-i386
+#RUN chmod -R 777 /usr/i686-linux-gnu
+
+#
+# Rust Toolchain
+#
+ENV RUST_TARGET=i686-unknown-linux-gnu
+RUN rustup target add $RUST_TARGET
+#not sure this is actually needed based on building projects
+#RUN rustup toolchain install stable-$RUST_TARGET
+#ENV CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=$BUILD_TARGET-gcc
+#ENV AR_i686_unknown_linux_gnu=$BUILD_TARGET-ar
+#ENV CC_i686_unknown_linux_gnu=$BUILD_TARGET-gcc
+#ENV CXX_i686_unknown_linux_gnu=$BUILD_TARGET-g++
+
+ENV CFLAGS="-m32 -march=i686"
+ENV CXXFLAGS="-m32 -march=i686"
+
+#ENV SYSROOT="/usr/${BUILD_TARGET}"
+#ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+#ENV CC=$BUILD_TARGET-gcc
+#ENV CXX=$BUILD_TARGET-g++
+#ENV STRIP=$BUILD_TARGET-strip
+#ENV AR=$BUILD_TARGET-ar
+#ENV RANLIB=$BUILD_TARGET-ranlib
+#ENV PKG_CONFIG_PATH="/${SYSROOT}/pkgconfig"

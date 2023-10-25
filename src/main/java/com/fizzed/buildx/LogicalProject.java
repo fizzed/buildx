@@ -4,11 +4,17 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
+import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
+import static com.fizzed.blaze.Systems.exec;
+import static java.util.Optional.ofNullable;
 
 public class LogicalProject {
     private final Logger log = Contexts.logger();
@@ -172,4 +178,52 @@ public class LogicalProject {
         log.info("Rsyncing {} -> {}", src, dest);
         return Systems.exec("rsync", "-avrt", "--delete", "--progress", src, dest);
     }
+
+    public void buildContainer() {
+        this.buildContainer(null);
+    }
+
+    public void buildContainer(ContainerBuilder containerBuilder) {
+        final String user = System.getProperty("user.name");
+        final String userId = this.exec("id", "-u", user).runCaptureOutput().toString();
+
+        try {
+            // we need a temp .m2 and .ivy2
+            Files.createDirectories(this.relativeDir.resolve(".buildx-temp/m2"));
+            Files.createDirectories(this.relativeDir.resolve(".buildx-temp/ivy2"));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        Path dockerFile = ofNullable(containerBuilder).map(v -> v.getDockerFile()).orElse(null);
+        if (dockerFile == null) {
+            dockerFile = this.relativeDir.resolve(".buildx/Dockerfile.linux");
+            if (target.getContainerImage().contains("alpine")) {
+                dockerFile = this.relativeDir.resolve(".buildx/Dockerfile.linux_musl");
+            }
+        }
+
+        Path installScript = ofNullable(containerBuilder).map(v -> v.getInstallScript()).orElse(null);
+        if (installScript == null) {
+            installScript = this.relativeDir.resolve(".buildx/noop-install.sh");
+        }
+
+        boolean cache = ofNullable(containerBuilder).map(v -> v.getCache()).orElse(true);
+
+        Exec exec = this.exec("docker", "build", "-f", dockerFile);
+
+        if (!cache) {
+            exec.arg("--no-cache");
+        }
+
+        exec.args("--build-arg", "FROM_IMAGE="+target.getContainerImage(),
+                "--build-arg", "USERID="+userId,
+                "--build-arg", "USERNAME="+user,
+                "--build-arg", "INSTALL_SCRIPT="+installScript,
+                "-t", this.getContainerName(),
+                this.relativeDir.resolve("."));
+
+        exec.run();
+    }
+
 }

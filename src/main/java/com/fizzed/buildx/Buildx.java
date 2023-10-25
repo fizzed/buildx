@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -20,17 +21,30 @@ import static com.fizzed.blaze.SecureShells.sshConnect;
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
 import static java.util.Arrays.asList;
+import static java.util.Optional.ofNullable;
 
 public class Buildx {
-    protected final Logger log = Contexts.logger();
 
-    private final List<Target> targets;
-    private Set<String> tags;
-    private final List<Predicate<Target>> filters;
+    protected final Logger log;
+    protected final Path relProjectDir;
+    protected final Path absProjectDir;
+    protected final String containerPrefix;
+    protected final List<Target> targets;
+    protected Set<String> tags;
+    protected final List<Predicate<Target>> filters;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
         this.filters = new ArrayList<>();
+
+         this.log = Contexts.logger();
+         this.relProjectDir = withBaseDir("..");
+         try {
+             this.absProjectDir = relProjectDir.toRealPath();
+         } catch (IOException e) {
+             throw new UncheckedIOException(e);
+         }
+         this.containerPrefix = absProjectDir.getFileName().toString();
     }
 
     public List<Target> getTargets() {
@@ -41,12 +55,12 @@ public class Buildx {
         return tags;
     }
 
-    public Buildx setTags(Set<String> tags) {
+    public Buildx tags(Set<String> tags) {
         this.tags = tags;
         return this;
     }
 
-    public Buildx setTags(String... tags) {
+    public Buildx tags(String... tags) {
         if (tags != null && tags.length > 0) {
             if (this.tags == null) {
                 this.tags = new HashSet<>();
@@ -56,67 +70,95 @@ public class Buildx {
         return this;
     }
 
-    public Buildx onlyWithContainers() {
+    public Buildx containersOnly() {
         this.filters.add(Target::hasContainer);
         return this;
     }
 
-    public void execute(ProjectExecute projectExecute) throws Exception {
-        final Path relProjectDir = withBaseDir("..");
-        final Path absProjectDir = relProjectDir.toRealPath();
-        final String containerPrefix = Contexts.config().value("container-prefix").get();
-        final Path buildxDirectory = createBuildxDirectory(absProjectDir);
-
-        final String targetsFilterConfig = Contexts.config().value("targets").orNull();
-        final String tagsFilterConfig = Contexts.config().value("tags").orNull();
-        final Set<String> targetsConfigFilter = this.buildFilter(targetsFilterConfig);
-        final Set<String> tagsConfigFilter = this.buildFilter(tagsFilterConfig);
-
+    private void validateTargets() {
         // validate if any targets have duplicate containers
         final Set<String> validateContainerNames = new HashSet<>();
-        for (Target target : targets) {
-            String containerName = target.resolveContainerName(containerPrefix);
+        for (Target target : this.targets) {
+            String containerName = target.resolveContainerName(this.containerPrefix);
             if (validateContainerNames.contains(containerName)) {
                 throw new IllegalStateException("Duplicate container name " + containerName + " detected for target " + target);
             }
             validateContainerNames.add(containerName);
         }
+    }
+
+    public List<Target> filteredTargets() {
+        final String targetsFilterStr = Contexts.config().value("targets").orNull();
+        final String tagsFilterStr = Contexts.config().value("tags").orNull();
+        final String descriptionsFilter = Contexts.config().value("descriptions").orNull();
+        final Set<String> targetsFilter = buildFilter(targetsFilterStr);
+        final Set<String> tagsFilter = buildFilter(tagsFilterStr);
 
         // build a final list of targets, applying the various filters
-        final List<Target> _targets = this.targets.stream()
-            .filter(v -> targetsConfigFilter == null || targetsConfigFilter.contains(v.getOsArch()))
-            .filter(v -> tagsConfigFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsConfigFilter)))
+        return this.targets.stream()
+            .filter(v -> targetsFilter == null || targetsFilter.stream().anyMatch(a -> v.getOsArch().contains(a)))
+            .filter(v -> tagsFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsFilter)))
             .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
+            .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
             .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
             .collect(Collectors.toList());
+    }
 
-        log.info("=====================================================");
-        log.info("Project info");
+    private void logTarget(Target target) {
+        log.info("{}", target);
+        if (target.getContainerImage() != null) {
+            log.info(" with container {}", target.getContainerImage());
+            log.info(" named {}", target.resolveContainerName(this.containerPrefix));
+        }
+        if (target.getHost() != null) {
+            log.info(" on host {}", target.getHost());
+        }
+        if (target.getTags() != null) {
+            log.info(" tagged {}", target.getTags());
+        }
+    }
+
+    public void listTargets() {
+        final List<Target> filteredTargets = this.filteredTargets();
+
+        for (Target target : filteredTargets) {
+            log.info("");
+            this.logTarget(target);
+        }
+
+        log.info("");
+    }
+
+    public void execute(ProjectExecute projectExecute) throws Exception {
+        this.validateTargets();
+
+        createBuildxDirectory(absProjectDir);
+
+        final List<Target> filteredTargets = this.filteredTargets();
+
+        log.info("");
+        log.info(fixedWidthCentered("Buildx Starting", '=', 100));
+        log.info("");
         log.info("  relativeDir: {}", relProjectDir);
         log.info("  absoluteDir: {}", absProjectDir);
         log.info("  containerPrefix: {}", containerPrefix);
         log.info("  targets:");
-        for (Target target : _targets) {
+        for (Target target : filteredTargets) {
             log.info("    {}", target);
         }
-        log.info("");
 
         // we'll keep track of how long things took
         final Map<Target,Result> results = new HashMap<>();
 
-        for (Target target : _targets) {
+        for (Target target : filteredTargets) {
             final long startMillis = System.currentTimeMillis();
             final Result result = new Result(startMillis);
 
-            log.info("=====================================================");
-            log.info("Executing for");
-            log.info("  os-arch: {}", target.getOsArch());
-            log.info("  description: {}", ifEmpty(target.getDescription(), "none"));
-            log.info("  host: {}", ifEmpty(target.getHost(), "none"));
-            log.info("  containerImage: {}", ifEmpty(target.getContainerImage(), "none"));
-            if (target.hasContainer()) {
-                log.info("  containerName: {}", target.resolveContainerName(containerPrefix));
-            }
+            log.info("");
+            log.info(fixedWidthCentered("Executing " + target, '=', 100));
+            log.info("");
+            logTarget(target);
+            log.info("");
 
             final boolean container = target.getContainerImage() != null;
             LogicalProject project = null;
@@ -161,7 +203,7 @@ public class Buildx {
                 String sshHost = target.getHost();
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.temp-m2/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
+                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-temp/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
                 // copy over the temp .buildx directory for resources we need on the remote side
 //                exec("rsync", "-vr", "--delete", "--progress", buildxDirectory+"/", sshHost+":"+remoteProjectDir+"/.buildx").run();
 
@@ -193,32 +235,38 @@ public class Buildx {
 
 
         log.info("");
-        log.info("=============================================== Results ===============================================");
-        for (Target target : _targets) {
-            Result result = results.get(target);
-            long durationMillis = result.getEndMillis() - result.getStartMillis();
-            double durationSecs = (double)durationMillis/1000d;
+        log.info(fixedWidthCentered("Buildx Results", '=', 100));
+        log.info("");
+        for (Target target : filteredTargets) {
+            final Result result = results.get(target);
+            final long durationMillis = result.getEndMillis() - result.getStartMillis();
+            final double durationSecs = (double)durationMillis/1000d;
+
             String appendMessage = "";
             if (result.getStatus() != ExecuteStatus.SUCCESS) {
                 appendMessage = " (" + result.getStatus().name().toLowerCase() + ": " + result.getMessage() + ")";
             }
-            String name = target.getOsArch();
-            if (target.getDescription() != null) {
-                name += "   (" + target.getDescription() + ")";
-            }
-            if (target.getTags() != null) {
-                name += "   " + target.getTags();
-            }
-            log.info("{} {} s{}", padRight(name, ".", 80), SECS_FMT.format(durationSecs), appendMessage);
+
+            final String name = ofNullable(target.getOsArch()).orElse("");
+            final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
+            final String tags = ofNullable(target.getTags().toString()).orElse("");
+
+            log.info("{} {} {}{} s{}",
+                fixedWidthLeft(name, ' ', 20),
+                fixedWidthLeft(description, ' ', 40),
+                fixedWidthLeft(tags + " ", '.', 26),
+                fixedWidthRight(" " + SECS_FMT.format(durationSecs), '.', 10),
+                appendMessage);
         }
-        log.info("=======================================================================================================");
+        log.info("");
+        log.info(fixedWidthCentered("Buildx Done", '=', 100));
     }
 
-    static public Path createBuildxDirectory(Path projectDir) throws IOException {
+    static public void createBuildxDirectory(Path projectDir) throws IOException {
         Path buildxDir = projectDir.resolve(".buildx");
         Files.createDirectories(buildxDir);
         // copy resources into it
-        for (String name : asList("exec.sh", "exec.bat")) {
+        for (String name : asList("exec.sh", "exec.bat", "noop-install.sh", "Dockerfile.linux", "Dockerfile.linux_musl")) {
             final String resourceName = "/com/fizzed/buildx/"+name;
             try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
                 if (input == null) {
@@ -229,7 +277,6 @@ public class Buildx {
                 file.toFile().setExecutable(true);
             }
         }
-        return buildxDir;
     }
 
     static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");
@@ -245,7 +292,24 @@ public class Buildx {
         return v;
     }
 
-    static private String padRight(String v, String padChar, int len) {
+    static private String fixedWidthCentered(String title, char padChar, int len) {
+        int totalPad = len - 2 - title.length();
+        int leftPad = totalPad / 2;
+        int rightPad = totalPad - leftPad;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < leftPad; i++) {
+            sb.append(padChar);
+        }
+        sb.append(" ");
+        sb.append(title);
+        sb.append(" ");
+        for (int i = 0; i < rightPad; i++) {
+            sb.append(padChar);
+        }
+        return sb.toString();
+    }
+
+    static private String fixedWidthLeft(String v, char padChar, int len) {
         if (v.length() > len) {
             return v.substring(0, len);
         } else if (v.length() == len) {
@@ -256,6 +320,22 @@ public class Buildx {
             for (int i = v.length(); i < len; i++) {
                 sb.append(padChar);
             }
+            return sb.toString();
+        }
+    }
+
+    static private String fixedWidthRight(String v, char padChar, int len) {
+        if (v.length() > len) {
+            return v.substring(0, len);
+        } else if (v.length() == len) {
+            return v;
+        } else {
+            StringBuilder sb = new StringBuilder();
+            int padLen = len - v.length();
+            for (int i = 0; i < padLen; i++) {
+                sb.append(padChar);
+            }
+            sb.append(v);
             return sb.toString();
         }
     }

@@ -5,21 +5,21 @@ FROM ${FROM_IMAGE}
 #
 # C/C++ Toolchain
 #
-ENV BUILD_TARGET=aarch64-linux-gnu
-RUN apt -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross
-RUN chmod -R 777 /usr/aarch64-linux-gnu
+ENV BUILD_TARGET=arm-linux-gnueabi
+RUN apt -y install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi binutils-arm-linux-gnueabi libc6-armel-cross libc6-dev-armel-cross
+RUN chmod -R 777 /usr/arm-linux-gnueabi
 
 #
 # Rust Toolchain
 #
-ENV RUST_TARGET=aarch64-unknown-linux-gnu
+ENV RUST_TARGET=arm-unknown-linux-gnueabi
 RUN rustup target add $RUST_TARGET
 #not sure this is actually needed based on building projects
 #RUN rustup toolchain install stable-$RUST_TARGET
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=$BUILD_TARGET-gcc
-ENV AR_aarch64_unknown_linux_gnu=$BUILD_TARGET-ar
-ENV CC_aarch64_unknown_linux_gnu=$BUILD_TARGET-gcc
-ENV CXX_aarch64_unknown_linux_gnu=$BUILD_TARGET-g++
+ENV CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABI_LINKER=$BUILD_TARGET-gcc
+ENV AR_arm_unknown_linux_gnueabi=$BUILD_TARGET-ar
+ENV CC_arm_unknown_linux_gnueabi=$BUILD_TARGET-gcc
+ENV CXX_arm_unknown_linux_gnueabi=$BUILD_TARGET-g++
 
 ENV SYSROOT="/usr/${BUILD_TARGET}"
 ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
