@@ -3,6 +3,8 @@ package com.fizzed.buildx;
 import java.util.Set;
 import java.util.TreeSet;
 
+import static com.fizzed.buildx.internal.BuildxHelper.sanitizeTargetDescription;
+import static com.fizzed.buildx.internal.BuildxHelper.validateOsArch;
 import static java.util.Arrays.asList;
 
 public class Target {
@@ -22,6 +24,8 @@ public class Target {
         this.os = os;
         this.arch = arch;
         this.description = description;
+        validateOsArch(this.os);
+        validateOsArch(this.arch);
     }
 
     public String getOs() {
@@ -93,7 +97,7 @@ public class Target {
         sb.append(this.getOsArch());
         if (this.description != null) {
             sb.append("-");
-            sb.append(this.description.replace(" ", "").replace(",", ""));
+            sb.append(sanitizeTargetDescription(this.description));
         }
         if (this.tags != null) {
             for (String tag : this.tags) {
