@@ -10,6 +10,26 @@ Blaze plugin for building projects across machines, hosts, and containers.  This
 docker containers for cross-building Java projects that require native code, as well as images across various architectures
 and JDK versions to help test "minimum compatible" scenarios.
 
+Buildx lets you execute arbitrary tasks you define locally, locally in a docker container, remotely via ssh, as well
+as remotely via ssh in a docker container.
+
+Buildx handles mounting/rsyncing your project repository before executing "actions" on it.  Those actions are entirely up to you
+to define.  You can then rsync anything back as part of your action.  Whether you're running your tasks locally, in a docker
+container, or remotely, the project environment is all setup for you to abstract away the complexity of the various
+environments.
+
+## Usage
+
+You'll need to use a [Blaze](https://github.com/fizzed/blaze) project and leverage this dependency to take advantage.
+
+We haven't had time to document this project as well as we'd like, but here are 3 examples that should help get you started.
+These examples help build & test Java projects that have a native-compiled library across Windows, MacOS, Linux, BSDs,
+across various architectures:
+
+https://github.com/fizzed/shmemj/blob/master/.blaze/blaze.java
+https://github.com/fizzed/tokyocabinet/blob/master/setup/blaze.java
+https://github.com/fizzed/tkrzw/blob/master/setup/blaze.java
+
 ## Containers for Java
 
 These containers contain a single JDK version that is set as the default, along with Maven 3.9.5, and Blaze build tools.
@@ -55,13 +75,6 @@ well as JDK 11.
 | fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu18 x64 |
 | fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu18 x64 |
 | fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64 | Cross compiling to linux-riscv64 from ubuntu18 x64 |
-
-
-## Usage
-
-You'll need to use a [Blaze](https://github.com/fizzed/blaze) project and leverage this dependency to take advantage.
-For a real world use, please check out https://github.com/fizzed/tokyocabinet/blob/master/setup/blaze.java and
-https://github.com/fizzed/tkrzw/blob/master/setup/blaze.java
 
 ## Multiple Architecture Containers
 
