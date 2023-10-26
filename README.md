@@ -6,7 +6,32 @@
 
 ## Overview
 
-Blaze plugin for building projects across machines, hosts, and containers.
+Blaze plugin for building projects across machines, hosts, and containers.  This repository also helps build and publish
+docker containers for cross-building Java projects that require native code, as well as images across various architectures
+and JDK versions to help test "minimum compatible" scenarios.
+
+## Containers
+
+| Container | Architecture | JDK |
+| --------- | ------------ | --- |
+| fizzed/buildx:arm64-alpine3.11-jdk11 | arm64 | JDK 11 |
+| fizzed/buildx:arm64-ubuntu16-jdk11 | arm64 | JDK 11 |
+| fizzed/buildx:arm64-ubuntu18-jdk11 | arm64 | JDK 11 |
+| fizzed/buildx:arm64-ubuntu20-jdk11 | arm64 | JDK 11 |
+| fizzed/buildx:armel-debian11-jdk11 | armel | JDK 11 |
+| fizzed/buildx:armhf-ubuntu16-jdk11 | armhf | JDK 11 |
+| fizzed/buildx:armhf-ubuntu18-jdk11 | armhf | JDK 11 |
+| fizzed/buildx:riscv64-ubuntu20-jdk21 | riscv64 | JDK 21 |
+| fizzed/buildx:x32-ubuntu16-jdk11 | x32 | JDK 11 |
+| fizzed/buildx:x32-ubuntu18-jdk11 | x32 | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk21 | x64 | JDK 21 |
+| fizzed/buildx:x64-ubuntu22-jdk17 | x64 | JDK 17 |
+| fizzed/buildx:x64-alpine3.11-jdk11 | x64 | JDK 11 |
+| fizzed/buildx:x64-ubuntu16-jdk11 | x64 | JDK 11 |
+| fizzed/buildx:x64-ubuntu18-jdk11 | x64 | JDK 11 |
+| fizzed/buildx:x64-ubuntu20-jdk11 | x64 | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk11 | x64 | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk8 | x64 | JDK 8 |
 
 ## Usage
 

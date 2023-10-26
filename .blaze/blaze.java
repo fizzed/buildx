@@ -1,14 +1,18 @@
 import com.fizzed.blaze.Contexts;
+import com.fizzed.blaze.Task;
 import com.fizzed.jne.HardwareArchitecture;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import static com.fizzed.blaze.Contexts.withBaseDir;
 import static com.fizzed.blaze.Systems.exec;
 import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 
 public class blaze {
 
@@ -233,6 +237,34 @@ public class blaze {
             exec("docker", "push", v.getImage()).run();
             exec("docker", "push", v.getAltImage()).run();
         }
+    }
+
+    @Task(order=54)
+    public void readme_markdown() throws Exception {
+        final List<Container> sortedJavaContainers = this.resolveJavaContainers()
+            .stream()
+            .sorted((a,b) -> {
+                int c = a.getJavaArch().compareTo(b.getJavaArch());
+                if (c == 0) {
+                    // java version in reverse order
+                    c = b.getJavaVersion().compareTo(a.getJavaVersion());
+                    if (c == 0) {
+                        c = a.getAltImage().compareTo(b.getAltImage());
+                    }
+                }
+                return c;
+            })
+            .collect(toList());
+
+        System.out.println();
+
+        System.out.println("| Container | Architecture | JDK |");
+        System.out.println("| --------- | ------------ | --- |");
+        for (Container v : sortedJavaContainers) {
+            System.out.println("| " + v.getAltImage() + " | " + v.getJavaArch() + " | JDK " + v.getJavaVersion() + " |");
+        }
+
+        System.out.println();
     }
 
     static public String canonicalArch(String arch) {
