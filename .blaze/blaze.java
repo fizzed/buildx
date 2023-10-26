@@ -136,6 +136,7 @@ public class blaze {
                     .setDockerFile(setupDir.resolve("Dockerfile.buildx-"+osArch))
                     .setFromImage("fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx")
                     .setImage("fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx-"+osArch)
+                    .setDescription("Cross compiling to " + osArch + " from " + ubuntuVersion + " x64")
                 );
             }
         }
@@ -265,6 +266,23 @@ public class blaze {
         }
 
         System.out.println();
+
+        List<Container> buildxContainers = this.resolveBuildxContainers();
+
+        System.out.println();
+
+        System.out.println("| Container | Description |");
+        System.out.println("| --------- | ----------- |");
+        for (Container v : buildxContainers) {
+            // skip base buildx box
+            if (v.getImage().endsWith("-buildx")) {
+                continue;
+            }
+            System.out.println("| " + v.getImage() + " | " + v.getDescription() + " |");
+        }
+
+        System.out.println();
+
     }
 
     static public String canonicalArch(String arch) {
@@ -282,6 +300,7 @@ public class blaze {
         private String altImage;
         private Integer javaVersion;
         private String javaArch;
+        private String description;
 
         public Path getDockerFile() {
             return dockerFile;
@@ -334,6 +353,15 @@ public class blaze {
 
         public Container setJavaArch(String javaArch) {
             this.javaArch = javaArch;
+            return this;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public Container setDescription(String description) {
+            this.description = description;
             return this;
         }
     }

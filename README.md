@@ -10,7 +10,9 @@ Blaze plugin for building projects across machines, hosts, and containers.  This
 docker containers for cross-building Java projects that require native code, as well as images across various architectures
 and JDK versions to help test "minimum compatible" scenarios.
 
-## Containers
+## Containers for Java
+
+These containers contain a single JDK version that is set as the default, along with Maven 3.9.5, and Blaze build tools.
 
 | Container | Architecture | JDK |
 | --------- | ------------ | --- |
@@ -32,6 +34,28 @@ and JDK versions to help test "minimum compatible" scenarios.
 | fizzed/buildx:x64-ubuntu20-jdk11 | x64 | JDK 11 |
 | fizzed/buildx:x64-ubuntu22-jdk11 | x64 | JDK 11 |
 | fizzed/buildx:x64-ubuntu22-jdk8 | x64 | JDK 8 |
+
+These containers are useful from cross building native code. They have latest versions of cmake, gcc, g++, rust, as 
+well as JDK 11.
+
+| Container | Description |
+| --------- | ----------- |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu16 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64 | Cross compiling to linux-riscv64 from ubuntu18 x64 |
+
 
 ## Usage
 
