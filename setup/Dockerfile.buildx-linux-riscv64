@@ -20,9 +20,9 @@ ENV CC_riscv64gc_unknown_linux_gnu=$BUILD_TARGET-gcc
 ENV CXX_riscv64gc_unknown_linux_gnu=$BUILD_TARGET-g++
 
 ENV SYSROOT="/usr/${BUILD_TARGET}"
-ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+#ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib"
 ENV CC=$BUILD_TARGET-gcc
 ENV CXX=$BUILD_TARGET-g++
 ENV STRIP=$BUILD_TARGET-strip

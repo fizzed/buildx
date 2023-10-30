@@ -31,9 +31,9 @@ ENV CXX_aarch64_unknown_linux_musl=$BUILD_TARGET-g++
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 
 ENV SYSROOT="/usr/${BUILD_TARGET}"
-ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+#ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
 ENV CC=$BUILD_TARGET-gcc
 ENV CXX=$BUILD_TARGET-g++
 ENV STRIP=$BUILD_TARGET-strip

@@ -23,9 +23,9 @@ ENV CC_armv7_unknown_linux_gnueabihf=$BUILD_TARGET-gcc
 ENV CXX_armv7_unknown_linux_gnueabihf=$BUILD_TARGET-g++
 
 ENV SYSROOT="/usr/${BUILD_TARGET}"
-ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
-ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
+#ENV CFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV CXXFLAGS="--sysroot=${SYSROOT} $CFLAGS"
+#ENV LDFLAGS="--sysroot=${SYSROOT} -L${SYSROOT}/lib $CFLAGS"
 ENV CC=$BUILD_TARGET-gcc
 ENV CXX=$BUILD_TARGET-g++
 ENV STRIP=$BUILD_TARGET-strip
