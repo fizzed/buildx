@@ -185,7 +185,7 @@ public class LogicalProject {
 
     public void buildContainer(ContainerBuilder containerBuilder) {
         final String user = System.getProperty("user.name");
-        final String userId = this.exec("id", "-u", user).runCaptureOutput().toString();
+        final String userId = Systems.exec("id", "-u", user).runCaptureOutput().toString();
 
         try {
             // we need a temp .m2 and .ivy2
