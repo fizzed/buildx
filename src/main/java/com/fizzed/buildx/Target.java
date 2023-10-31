@@ -105,7 +105,8 @@ public class Target {
                 sb.append(tag);
             }
         }
-        return sb.toString();
+        // containers names must be lowercase too
+        return sb.toString().toLowerCase();
     }
 
     public String toString() {
