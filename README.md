@@ -34,47 +34,72 @@ https://github.com/fizzed/tkrzw/blob/master/setup/blaze.java
 
 These containers contain a single JDK version that is set as the default, along with Maven 3.9.5, and Blaze build tools.
 
-| Container | Architecture | JDK |
-| --------- | ------------ | --- |
-| fizzed/buildx:arm64-alpine3.11-jdk11 | arm64 | JDK 11 |
-| fizzed/buildx:arm64-ubuntu16-jdk11 | arm64 | JDK 11 |
-| fizzed/buildx:arm64-ubuntu18-jdk11 | arm64 | JDK 11 |
-| fizzed/buildx:arm64-ubuntu20-jdk11 | arm64 | JDK 11 |
-| fizzed/buildx:armel-debian11-jdk11 | armel | JDK 11 |
-| fizzed/buildx:armhf-ubuntu16-jdk11 | armhf | JDK 11 |
-| fizzed/buildx:armhf-ubuntu18-jdk11 | armhf | JDK 11 |
-| fizzed/buildx:riscv64-ubuntu20-jdk21 | riscv64 | JDK 21 |
-| fizzed/buildx:x32-ubuntu16-jdk11 | x32 | JDK 11 |
-| fizzed/buildx:x32-ubuntu18-jdk11 | x32 | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk21 | x64 | JDK 21 |
-| fizzed/buildx:x64-ubuntu22-jdk17 | x64 | JDK 17 |
-| fizzed/buildx:x64-alpine3.11-jdk11 | x64 | JDK 11 |
-| fizzed/buildx:x64-ubuntu16-jdk11 | x64 | JDK 11 |
-| fizzed/buildx:x64-ubuntu18-jdk11 | x64 | JDK 11 |
-| fizzed/buildx:x64-ubuntu20-jdk11 | x64 | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk11 | x64 | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk8 | x64 | JDK 8 |
+| Container                            | Architecture | JDK    |
+|--------------------------------------|--------------|--------|
+| fizzed/buildx:arm64-alpine3.11-jdk11 | arm64        | JDK 11 |
+| fizzed/buildx:arm64-ubuntu16-jdk11   | arm64        | JDK 11 |
+| fizzed/buildx:arm64-ubuntu18-jdk11   | arm64        | JDK 11 |
+| fizzed/buildx:arm64-ubuntu20-jdk11   | arm64        | JDK 11 |
+| fizzed/buildx:armel-debian11-jdk11   | armel        | JDK 11 |
+| fizzed/buildx:armhf-ubuntu16-jdk11   | armhf        | JDK 11 |
+| fizzed/buildx:armhf-ubuntu18-jdk11   | armhf        | JDK 11 |
+| fizzed/buildx:riscv64-ubuntu20-jdk21 | riscv64      | JDK 21 |
+| fizzed/buildx:x32-ubuntu16-jdk11     | x32          | JDK 11 |
+| fizzed/buildx:x32-ubuntu18-jdk11     | x32          | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk21     | x64          | JDK 21 |
+| fizzed/buildx:x64-ubuntu22-jdk17     | x64          | JDK 17 |
+| fizzed/buildx:x64-alpine3.11-jdk11   | x64          | JDK 11 |
+| fizzed/buildx:x64-ubuntu16-jdk11     | x64          | JDK 11 |
+| fizzed/buildx:x64-ubuntu18-jdk11     | x64          | JDK 11 |
+| fizzed/buildx:x64-ubuntu20-jdk11     | x64          | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk11     | x64          | JDK 11 |
+| fizzed/buildx:x64-ubuntu22-jdk8      | x64          | JDK 8  |
 
 These containers are useful from cross building native code. They have latest versions of cmake, gcc, g++, rust, as 
 well as JDK 11.
 
-| Container | Description |
-| --------- | ----------- |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu16 x64 |
+| Container                                                | Description                                           |
+|----------------------------------------------------------|-------------------------------------------------------|
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x64        | Cross compiling to linux-x64 from ubuntu16 x64        |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x32        | Cross compiling to linux-x32 from ubuntu16 x64        |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-x64   | Cross compiling to linux_musl-x64 from ubuntu16 x64   |
 | fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-arm64      | Cross compiling to linux-arm64 from ubuntu16 x64      |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armhf      | Cross compiling to linux-armhf from ubuntu16 x64      |
+| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armel      | Cross compiling to linux-armel from ubuntu16 x64      |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x64        | Cross compiling to linux-x64 from ubuntu18 x64        |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x32        | Cross compiling to linux-x32 from ubuntu18 x64        |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-x64   | Cross compiling to linux_musl-x64 from ubuntu18 x64   |
 | fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64 | Cross compiling to linux-riscv64 from ubuntu18 x64 |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-arm64      | Cross compiling to linux-arm64 from ubuntu18 x64      |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf      | Cross compiling to linux-armhf from ubuntu18 x64      |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel      | Cross compiling to linux-armel from ubuntu18 x64      |
+| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64    | Cross compiling to linux-riscv64 from ubuntu18 x64    |
+
+## Linux Compatibility
+
+When you compile software on Linux, the libraries it depends on are important for whether it will run on future versions
+of an operating system. Glibc is an important base library.  Here is a compatibility matrix for important distros:
+
+| Operating System       | GLIBC      | Released |
+|------------------------|------------|----------|
+| Debian 12 (Bookworm)   | glibc 2.36 | 2023     |
+| Debian 11 (Bullseye)   | glibc 2.31 | 2021     |
+| Debian 10 (Buster)     | glibc 2.28 | 2019     |
+| Debian 9 (Stretch)     | glibc 2.24 | 2017     |
+| Debian 8 (Jessie)      | glibc 2.19 | 2015     |
+| Debian 7 (Wheezy)      | glibc 2.13 | 2013     |
+| Debian 6 (Squeeze)     | glibc 2.11 | 2011     |
+| ---------------------  | ---------- | ----     |
+| Ubuntu 22.04 (Jammy)   | glibc 2.35 | 2022     |
+| Ubuntu 20.04 (Focal)   | glibc 2.31 | 2020     |
+| Ubuntu 18.04 (Bionic)  | glibc 2.27 | 2018     |
+| Ubuntu 16.04 (Xenial)  | glibc 2.23 | 2016     |
+| Ubuntu 14.04 (Trusty)  | glibc 2.19 | 2014     |
+| Ubuntu 12.04 (Precise) | glibc 2.15 | 2012     |
+| Ubuntu 10.04 (Lucid)   | glibc 2.11 | 2010     |
+| Ubuntu 8.04 (Hardy)    | glibc 2.6  | 2008     |
+| Ubuntu 6.06 (Dapper)   | glibc 2.3  | 2006     |
 
 ## Multiple Architecture Containers
 
