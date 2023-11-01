@@ -252,9 +252,9 @@ public class Buildx {
             final String tags = ofNullable(target.getTags().toString()).orElse("");
 
             log.info("{} {} {}{} s{}",
-                fixedWidthLeft(name, ' ', 20),
-                fixedWidthLeft(description, ' ', 40),
-                fixedWidthLeft(tags + " ", '.', 26),
+                fixedWidthLeft(name, ' ', 16),
+                fixedWidthLeft(description, ' ', 50),
+                fixedWidthLeft(tags + " ", '.', 20),
                 fixedWidthRight(" " + SECS_FMT.format(durationSecs), '.', 10),
                 appendMessage);
         }
