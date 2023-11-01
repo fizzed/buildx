@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
@@ -111,8 +112,20 @@ public class LogicalProject {
         }
     }
 
+    private String sshShellExecScript() {
+        if (this.target.isWindows()) {
+            return this.remotePath(".buildx/exec.bat");
+        } else {
+            return this.remotePath(".buildx/exec.sh");
+        }
+    }
+
+    /**
+     * Executes a command ON the logical project such as in a container.
+     */
     public Exec action(String path, Object... arguments) {
-        // run every command in our wrapper script
+
+        /*// run every command in our wrapper script
         final String actionScript = this.target.isWindows() ? this.actionPath(".buildx/exec.bat") : this.actionPath(".buildx/exec.sh");
         // rebuild arguments now
         final Object[] newArguments = new Object[arguments.length+1];
@@ -122,33 +135,54 @@ public class LogicalProject {
             newArguments[i] = a;
             i++;
         }
-        arguments = newArguments;
+        arguments = newArguments;*/
 
+        final String actionScript = path;
 
         // is remote?
         if (this.sshSession != null) {
             if (this.container) {
-                // in container too?
-                return sshExec(sshSession, "docker", "run", "-v", this.getRemoteDir() + ":/project", this.getContainerName(), actionScript).args(arguments);
+                // SSH + Container (we need to map the remote path! for docker)
+                return this.exec("docker", "run", "-v", this.getRemoteDir() + ":/project", this.getContainerName(), actionScript)
+                    .args(arguments);
             } else {
-                // remote path
-                return sshExec(sshSession, actionScript).args(arguments);
+                // SSH
+                return this.exec(actionScript)
+                    .args(arguments);
             }
         } else {
             // on local machine
             if (this.container) {
-                // in container too?
-                return exec("docker", "run", "-v", this.getAbsoluteDir() + ":/project", this.getContainerName(), actionScript).args(arguments);
+                // LOCAL + Container (we need to map the local path! for docker)
+                return this.exec("docker", "run", "-v", this.getAbsoluteDir() + ":/project", this.getContainerName(), actionScript)
+                    .args(arguments);
             } else {
-                // fully local
-                return exec(actionScript).args(arguments);
+                // LOCAL
+                return this.exec(actionScript)
+                    .args(arguments);
             }
         }
     }
 
+    /**
+     * Executes a command ON the host machine of the target.
+     */
     public Exec exec(String path, Object... arguments) {
-        final String actionScript;
+        // is remote?
         if (this.sshSession != null) {
+            return sshExec(sshSession, this.sshShellExecScript(), path)
+                .args(arguments)
+                .workingDir(this.remotePath(""));
+        } else {
+            return Systems.exec(path)
+                .args(arguments)
+                .workingDir(this.absoluteDir);
+        }
+
+
+        /*final String actionScript;
+        if (this.sshSession != null) {
+            // sshShellExecScript already makes the command relative
             actionScript = this.remotePath(path);
         } else {
             actionScript = this.relativePath(path);
@@ -159,7 +193,7 @@ public class LogicalProject {
             return sshExec(sshSession, actionScript).args(arguments).workingDir(this.remotePath(""));
         } else {
             return Systems.exec(actionScript).args(arguments);
-        }
+        }*/
     }
 
     public Exec rsync(String sourcePath, String destPath) {
@@ -184,28 +218,40 @@ public class LogicalProject {
     }
 
     public void buildContainer(ContainerBuilder containerBuilder) {
-        final String user = System.getProperty("user.name");
-        final String userId = Systems.exec("id", "-u", user).runCaptureOutput().toString();
+        // this commands MUST be executed on the host we're building the container on
+        final String username = this.exec("whoami")
+            .runCaptureOutput()
+            .toString()
+            .trim();
 
-        try {
-            // we need a temp .m2 and .ivy2
+        final String userId = this.exec("id", "-u", username)
+            .runCaptureOutput()
+            .toString()
+            .trim();
+
+        // create build cache for m2 and ivy2
+        this.exec("mkdir", "-p", ".buildx-cache/m2", ".buildx-cache/ivy2")
+            .run();
+
+        /*try {
+            // we need a temp .m2 and .ivy2 (locally is okay since these will be rsynced?)
             Files.createDirectories(this.relativeDir.resolve(".buildx-temp/m2"));
             Files.createDirectories(this.relativeDir.resolve(".buildx-temp/ivy2"));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        }
+        }*/
 
         Path dockerFile = ofNullable(containerBuilder).map(v -> v.getDockerFile()).orElse(null);
         if (dockerFile == null) {
-            dockerFile = this.relativeDir.resolve(".buildx/Dockerfile.linux");
+            dockerFile = Paths.get(".buildx/Dockerfile.linux");
             if (target.getContainerImage().contains("alpine")) {
-                dockerFile = this.relativeDir.resolve(".buildx/Dockerfile.linux_musl");
+                dockerFile = Paths.get(".buildx/Dockerfile.linux_musl");
             }
         }
 
         Path installScript = ofNullable(containerBuilder).map(v -> v.getInstallScript()).orElse(null);
         if (installScript == null) {
-            installScript = this.relativeDir.resolve(".buildx/noop-install.sh");
+            installScript = Paths.get(".buildx/noop-install.sh");
         }
 
         boolean cache = ofNullable(containerBuilder).map(v -> v.getCache()).orElse(true);
@@ -218,7 +264,7 @@ public class LogicalProject {
 
         exec.args("--build-arg", "FROM_IMAGE="+target.getContainerImage(),
                 "--build-arg", "USERID="+userId,
-                "--build-arg", "USERNAME="+user,
+                "--build-arg", "USERNAME="+username,
                 "--build-arg", "INSTALL_SCRIPT="+installScript,
                 "-t", this.getContainerName(),
                 this.relativeDir.resolve("."));

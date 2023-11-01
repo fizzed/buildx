@@ -203,7 +203,7 @@ public class Buildx {
                 String sshHost = target.getHost();
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-temp/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
+                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
                 // copy over the temp .buildx directory for resources we need on the remote side
 //                exec("rsync", "-vr", "--delete", "--progress", buildxDirectory+"/", sshHost+":"+remoteProjectDir+"/.buildx").run();
 
@@ -252,9 +252,9 @@ public class Buildx {
             final String tags = ofNullable(target.getTags().toString()).orElse("");
 
             log.info("{} {} {}{} s{}",
-                fixedWidthLeft(name, ' ', 20),
-                fixedWidthLeft(description, ' ', 40),
-                fixedWidthLeft(tags + " ", '.', 26),
+                fixedWidthLeft(name, ' ', 16),
+                fixedWidthLeft(description, ' ', 50),
+                fixedWidthLeft(tags + " ", '.', 20),
                 fixedWidthRight(" " + SECS_FMT.format(durationSecs), '.', 10),
                 appendMessage);
         }
