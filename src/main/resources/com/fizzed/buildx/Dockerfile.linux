@@ -17,6 +17,7 @@ RUN rm -f /install.sh
 USER ${USERNAME}
 WORKDIR /project
 
-# use cached .m2 and .ivy2 for faster builds
+# use cached .m2, .ivy2, .blaze for faster builds
+RUN ln -s /project/.buildx-cache/blaze ~/.blaze
 RUN ln -s /project/.buildx-cache/m2 ~/.m2
 RUN ln -s /project/.buildx-cache/ivy2 ~/.ivy2
