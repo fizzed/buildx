@@ -230,7 +230,7 @@ public class LogicalProject {
             .trim();
 
         // create build cache for m2 and ivy2
-        this.exec("mkdir", "-p", ".buildx-cache/m2", ".buildx-cache/ivy2")
+        this.exec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
         /*try {
