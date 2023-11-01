@@ -203,7 +203,7 @@ public class Buildx {
                 String sshHost = target.getHost();
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-temp/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
+                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
                 // copy over the temp .buildx directory for resources we need on the remote side
 //                exec("rsync", "-vr", "--delete", "--progress", buildxDirectory+"/", sshHost+":"+remoteProjectDir+"/.buildx").run();
 
