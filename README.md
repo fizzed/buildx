@@ -1,8 +1,6 @@
-# Blaze Buildx by Fizzed
+# Buildx by Fizzed
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.fizzed/buildx?color=blue&style=flat-square)](https://mvnrepository.com/artifact/com.fizzed/blaze-buildx)
-
-[Fizzed, Inc.](http://fizzed.com) (Follow on Twitter: [@fizzed_inc](http://twitter.com/fizzed_inc))
 
 ## Overview
 
@@ -17,6 +15,22 @@ Buildx handles mounting/rsyncing your project repository before executing "actio
 to define.  You can then rsync anything back as part of your action.  Whether you're running your tasks locally, in a docker
 container, or remotely, the project environment is all setup for you to abstract away the complexity of the various
 environments.
+
+## Sponsorship & Support
+
+![](https://cdn.fizzed.com/github/fizzed-logo-100.png)
+
+Project by [Fizzed, Inc.](http://fizzed.com) (Follow on Twitter: [@fizzed_inc](http://twitter.com/fizzed_inc))
+
+**Developing and maintaining opensource projects requires significant time.** If you find this project useful or need
+commercial support, we'd love to chat. Drop us an email at [ping@fizzed.com](mailto:ping@fizzed.com)
+
+Project sponsors may include the following benefits:
+
+- Priority support (outside of Github)
+- Feature development & roadmap
+- Priority bug fixes
+- Privately hosted continuous integration tests for their unique edge or use cases
 
 ## Usage
 
