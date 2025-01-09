@@ -28,6 +28,7 @@ public class LogicalProject {
     private final boolean container;
     private final SshSession sshSession;
     private final String pathSeparator;
+    private String containerExe;
 
     public LogicalProject(Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
         this.target = target;
@@ -38,6 +39,7 @@ public class LogicalProject {
         this.container = container;
         this.sshSession = sshSession;
         this.pathSeparator = pathSeparator;
+        this.containerExe = null;
     }
 
     public String getContainerName() {
@@ -70,6 +72,15 @@ public class LogicalProject {
 
     public String getPathSeparator() {
         return pathSeparator;
+    }
+
+    public String getContainerExe() {
+        return containerExe;
+    }
+
+    public LogicalProject setContainerExe(String containerExe) {
+        this.containerExe = containerExe;
+        return this;
     }
 
     // helpers
@@ -143,7 +154,7 @@ public class LogicalProject {
         if (this.sshSession != null) {
             if (this.container) {
                 // SSH + Container (we need to map the remote path! for docker)
-                return this.exec("docker", "run", "-v", this.getRemoteDir() + ":/project", this.getContainerName(), actionScript)
+                return this.exec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project", this.getContainerName(), actionScript)
                     .args(arguments);
             } else {
                 // SSH
@@ -154,7 +165,7 @@ public class LogicalProject {
             // on local machine
             if (this.container) {
                 // LOCAL + Container (we need to map the local path! for docker)
-                return this.exec("docker", "run", "-v", this.getAbsoluteDir() + ":/project", this.getContainerName(), actionScript)
+                return this.exec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project", this.getContainerName(), actionScript)
                     .args(arguments);
             } else {
                 // LOCAL
@@ -256,7 +267,7 @@ public class LogicalProject {
 
         boolean cache = ofNullable(containerBuilder).map(v -> v.getCache()).orElse(true);
 
-        Exec exec = this.exec("docker", "build", "-f", dockerFile);
+        Exec exec = this.exec(this.containerExe, "build", "-f", dockerFile);
 
         if (!cache) {
             exec.arg("--no-cache");

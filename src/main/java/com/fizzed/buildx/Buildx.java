@@ -1,7 +1,10 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
+import com.fizzed.blaze.core.BlazeException;
+import com.fizzed.blaze.core.ExecutableNotFoundException;
 import com.fizzed.blaze.ssh.SshSession;
+import com.fizzed.blaze.util.Streamables;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -211,6 +214,49 @@ public class Buildx {
             } else {
                 project = new LogicalProject(target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
             }
+
+            //
+            // if we're using containers do we use podman or docker?
+            //
+            String containerExe = null;
+            if (container) {
+                // is there podman?
+                log.info("Detecting if podman is installed...");
+                try {
+                    project.exec("podman", "-v")
+                        .pipeOutput(Streamables.nullOutput())
+                        .pipeError(Streamables.nullOutput())
+                        .exitValue(0)
+                        .run();
+                    containerExe = "podman";
+                } catch (ExecutableNotFoundException e) {
+                    // podman was not found, move on
+                }
+
+                if (containerExe == null) {
+                    log.info("Detecting if docker is installed...");
+                    // is there docker?
+                    try {
+                        project.exec("docker", "-v")
+                            .pipeOutput(Streamables.nullOutput())
+                            .pipeError(Streamables.nullOutput())
+                            .exitValue(0)
+                            .run();
+                        containerExe = "docker";
+                    } catch (ExecutableNotFoundException e) {
+                        // docker was not found, move on
+                    }
+                }
+
+                if (containerExe == null) {
+                    throw new BlazeException("Unable to determine container runtime (neither podman or docker appears to be installed or available on PATH)");
+                }
+
+                log.info("Using container runtime: {}", containerExe);
+
+                project.setContainerExe(containerExe);
+            }
+
 
             ExecuteStatus status = null;
             try {
