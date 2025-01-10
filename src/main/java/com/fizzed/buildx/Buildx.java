@@ -4,6 +4,7 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.core.BlazeException;
 import com.fizzed.blaze.core.ExecutableNotFoundException;
 import com.fizzed.blaze.ssh.SshSession;
+import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
 import org.slf4j.Logger;
 
@@ -11,10 +12,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.text.DecimalFormat;
+import java.time.DateTimeException;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -31,6 +34,7 @@ public class Buildx {
     protected final Logger log;
     protected final Path relProjectDir;
     protected final Path absProjectDir;
+    protected Path resultsFile;
     protected final String containerPrefix;
     protected final List<Target> targets;
     protected Set<String> tags;
@@ -47,6 +51,7 @@ public class Buildx {
          } catch (IOException e) {
              throw new UncheckedIOException(e);
          }
+         this.resultsFile = this.absProjectDir.resolve("buildx-results.txt");
          this.containerPrefix = absProjectDir.getFileName().toString();
     }
 
@@ -56,6 +61,15 @@ public class Buildx {
 
     public Set<String> getTags() {
         return tags;
+    }
+
+    public Path getResultsFile() {
+        return resultsFile;
+    }
+
+    public Buildx resultsFile(Path resultsFile) {
+        this.resultsFile = resultsFile;
+        return this;
     }
 
     public Buildx tags(Set<String> tags) {
@@ -279,6 +293,36 @@ public class Buildx {
             }
         }
 
+        if (this.resultsFile != null) {
+            // get the current git hash: git log -1 --format=%H
+            final CaptureOutput captureOutput = Streamables.captureOutput(false);
+            exec("git", "log", "-1", "--format=%H")
+                .pipeError(Streamables.nullOutput())
+                .pipeOutput(captureOutput)
+                .run();
+            final String gitCommitHash = captureOutput.toString().trim();
+
+            final StringBuilder sb = new StringBuilder();
+            sb.append("Buildx Results\r\n");
+            sb.append("--------------\r\n");
+            sb.append("Cross platform tests use the Buildx project: https://github.com/fizzed/buildx\r\n");
+            sb.append("Commit: ").append(gitCommitHash).append("\r\n");
+            sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\r\n");
+            sb.append("\r\n");
+            for (Target target : filteredTargets) {
+                final Result result = results.get(target);
+                final String name = ofNullable(target.getOsArch()).orElse("");
+                final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
+                String appendMessage = result.getStatus().name().toLowerCase();
+                if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
+                    appendMessage += ": " + result.getMessage();
+                }
+                sb.append(fixedWidthLeft(name, ' ', 16)).append(fixedWidthLeft(description, ' ', 50)).append(appendMessage).append("\r\n");
+            }
+            sb.append("\r\n");
+
+            Files.write(resultsFile, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        }
 
         log.info("");
         log.info(fixedWidthCentered("Buildx Results", '=', 100));

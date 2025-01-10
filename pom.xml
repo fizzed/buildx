@@ -21,7 +21,7 @@
     
     <properties>
         <java.version>1.8</java.version>
-        <blaze.version>1.1.0</blaze.version>
+        <blaze.version>1.8.0</blaze.version>
     </properties>
     
     <dependencies>
