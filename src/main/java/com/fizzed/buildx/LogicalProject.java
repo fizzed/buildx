@@ -154,8 +154,9 @@ public class LogicalProject {
         if (this.sshSession != null) {
             if (this.container) {
                 // SSH + Container (we need to map the remote path! for docker)
-                // adding ":U" fixes podman to mount as the user
-                return this.exec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:U", this.getContainerName(), actionScript)
+                // adding ":z" fixes podman to mount as the user
+                // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
+                return this.exec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), actionScript)
                     .args(arguments);
             } else {
                 // SSH
@@ -166,8 +167,9 @@ public class LogicalProject {
             // on local machine
             if (this.container) {
                 // LOCAL + Container (we need to map the local path! for docker)
-                // adding ":U" fixes podman to mount as the user
-                return this.exec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project:U", this.getContainerName(), actionScript)
+                // adding ":z" fixes podman to mount as the user
+                // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
+                return this.exec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), actionScript)
                     .args(arguments);
             } else {
                 // LOCAL
