@@ -118,32 +118,24 @@ of an operating system. Glibc is an important base library.  Here is a compatibi
 ## Multiple Architecture Containers
 
 You can use an Ubuntu x86_64 host to test a wide variety of hardware architectures and operating systems.
-Install QEMU and various emulators: https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
 
-Option 1 is to use the multiarch method (which only works on an x86_64 host):
+Things have changed with recent Ubuntus, on Ubuntu 25.10:
 
-    sudo apt-get install qemu binfmt-support qemu-user-static
-    docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    sudo apt install binfmt-support qemu-user-binfmt
 
-Option 2 is to use the https://github.com/dbhi/qus method which can work on x86_64 and other arches:
-
-    docker run --rm --privileged aptman/qus -s -- -p 
-
-To unregister associations with either option above
-
-    docker run --rm --privileged aptman/qus -- -r
+I **think** that registers and sets everything up correctly.
 
 This will now register docker to be able to detect and run various architectures automatically. You can now try it out:
 
-    docker run --rm -t arm64v8/ubuntu dpkg --print-architecture       #arm64
-    docker run --rm -t arm32v7/debian dpkg --print-architecture       #armhf
-    docker run --rm -t arm32v5/debian dpkg --print-architecture       #armel
-    docker run --rm -t riscv64/ubuntu dpkg --print-architecture       #riscv64
-    docker run --rm -t i386/ubuntu dpkg --print-architecture          #i386
+    podman run --rm -it --arch arm64/v8 docker.io/arm64v8/ubuntu dpkg --print-architecture           #arm64
+    podman run --rm -it --arch arm32/v7 docker.io/arm32v7/debian:12.0 dpkg --print-architecture       #armhf
+    podman run --rm -it --arch arm32/v5 docker.io/arm32v5/debian:12.0 dpkg --print-architecture       #armel
+    podman run --rm -it --arch riscv64 docker.io/riscv64/ubuntu dpkg --print-architecture            #riscv64
+    podman run --rm -it --arch i386 docker.io/i386/debian:12.0 dpkg --print-architecture             #i386
 
 If you'd like to try various Java system properties to see what they'd look like:
 
-    docker run --rm -it riscv64/ubuntu
+    podman run --rm -it --arch riscv64 docker.io/riscv64/ubuntu
     apt update
     apt install openjdk-11-jdk-headless
     jshell

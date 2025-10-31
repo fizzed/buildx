@@ -1,13 +1,14 @@
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Task;
 import com.fizzed.jne.HardwareArchitecture;
+import com.fizzed.jne.NativeLanguageModel;
+import com.fizzed.jne.NativeTarget;
+import com.fizzed.jne.PlatformInfo;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 import static com.fizzed.blaze.Contexts.withBaseDir;
 import static com.fizzed.blaze.Systems.exec;
@@ -22,31 +23,32 @@ public class blaze {
 
     private final Path dockerFileLinux = setupDir.resolve("Dockerfile.linux");
     private final Path dockerFileLinuxMusl = setupDir.resolve("Dockerfile.linux_musl");
+    private final String containerExe = Contexts.config().value("container-exe").orElse("podman");
 
     private List<Container> resolveJavaContainers() {
         List<Container> containers = new ArrayList<>();
 
         // ubuntu16+jdk11 architectures
-        for (String arch : asList("amd64", "i386", "arm64v8", "arm32v7")) {
+        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
-                .setFromImage(arch+"/ubuntu:16.04")
+                .setFromImage("docker.io/"+arch+"/ubuntu:16.04")
                 .setJavaVersion(11)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-ubuntu16-jdk11")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu16-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu16-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu16-jdk11")
             );
         }
 
         // ubuntu18+jdk11 architectures
-        for (String arch : asList("amd64", "i386", "arm64v8", "arm32v7")) {
+        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
-                .setFromImage(arch+"/ubuntu:18.04")
+                .setFromImage("docker.io/"+arch+"/ubuntu:18.04")
                 .setJavaVersion(11)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-ubuntu18-jdk11")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu18-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu18-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu18-jdk11")
             );
         }
 
@@ -54,48 +56,49 @@ public class blaze {
         for (String arch : asList("amd64", "arm64v8")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
-                .setFromImage(arch+"/ubuntu:20.04")
+                .setFromImage("docker.io/"+arch+"/ubuntu:20.04")
                 .setJavaVersion(11)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-ubuntu20-jdk11")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu20-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk11")
             );
         }
 
-        // ubuntu20+jdk21 architectures (was an old riscv64 test image we used)
+        // ubuntu22+jdk21 architectures (was an old riscv64 test image we used)
         for (String arch : asList("riscv64")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
-                .setFromImage(arch+"/ubuntu:20.04")
+                .setFromImage("docker.io/"+arch+"/ubuntu:22.04")
                 .setJavaVersion(21)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-ubuntu20-jdk21")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk21")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu22-jdk21")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu22-jdk21")
             );
         }
 
-        // debian11+jdk11 architectures
+        // something busted with debian 11, punting on testing this
+        /*// debian11+jdk11 architectures
         for (String arch : asList("arm32v5")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
-                .setFromImage(arch+"/debian:11")
+                .setFromImage("docker.io/"+arch+"/debian:12")
                 .setJavaVersion(11)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-debian11-jdk11")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-debian11-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-debian12-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-debian12-jdk11")
             );
-        }
+        }*/
 
         // ubuntu22 + all java version on x64
         for (String arch : asList("amd64")) {
             for (Integer version : asList(21, 17, 11, 8)) {
                 containers.add(new Container()
                     .setDockerFile(dockerFileLinux)
-                    .setFromImage(arch + "/ubuntu:22.04")
+                    .setFromImage("docker.io/"+arch + "/ubuntu:22.04")
                     .setJavaVersion(version)
                     .setJavaArch(canonicalArch(arch))
-                    .setImage("fizzed/buildx:" + arch + "-ubuntu22-jdk"+version)
-                    .setAltImage("fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk"+version)
+                    .setImage("docker.io/"+"fizzed/buildx:" + arch + "-ubuntu22-jdk"+version)
+                    .setAltImage("docker.io/"+"fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk"+version)
                 );
             }
         }
@@ -104,11 +107,23 @@ public class blaze {
         for (String arch : asList("amd64", "arm64v8")) {
             containers.add(new Container()
                 .setDockerFile(dockerFileLinuxMusl)
-                .setFromImage(arch+"/alpine:3.11")
+                .setFromImage("docker.io/"+arch+"/alpine:3.11")
                 .setJavaVersion(11)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("fizzed/buildx:"+arch+"-alpine3.11-jdk11")
-                .setAltImage("fizzed/buildx:"+canonicalArch(arch)+"-alpine3.11-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.11-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.11-jdk11")
+            );
+        }
+
+        // alpine3.20 architectures
+        for (String arch : asList("amd64", "arm64v8", "riscv64")) {
+            containers.add(new Container()
+                .setDockerFile(dockerFileLinuxMusl)
+                .setFromImage("docker.io/"+arch+"/alpine:3.20")
+                .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.20-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.20-jdk11")
             );
         }
 
@@ -122,11 +137,11 @@ public class blaze {
         for (String ubuntuVersion : asList("ubuntu16", "ubuntu18")) {
             containers.add(new Container()
                 .setDockerFile(setupDir.resolve("Dockerfile.buildx"))
-                .setFromImage("fizzed/buildx:x64-"+ubuntuVersion+"-jdk11")
-                .setImage("fizzed/buildx:x64-"+ubuntuVersion+"-jdk11-buildx")
+                .setFromImage("docker.io/fizzed/buildx:x64-"+ubuntuVersion+"-jdk11")
+                .setImage("docker.io/fizzed/buildx:x64-"+ubuntuVersion+"-jdk11-buildx")
             );
 
-            for (String osArch : asList("linux-x64", "linux-x32", "linux_musl-x64", "linux_musl-arm64", "linux-arm64", "linux-armhf", "linux-armel", "linux-riscv64")) {
+            for (String osArch : asList("linux-x64", "linux-x32", "linux-arm64", "linux-armhf", "linux-armel", "linux-riscv64", "linux_musl-x64", "linux_musl-arm64", "linux_musl-riscv64")) {
                 // NOTE: riscv64 does not work in ubuntu16
                 if (ubuntuVersion.equals("ubuntu16") && osArch.contains("-riscv64")) {
                     continue;   // skip it
@@ -134,8 +149,8 @@ public class blaze {
 
                 containers.add(new Container()
                     .setDockerFile(setupDir.resolve("Dockerfile.buildx-"+osArch))
-                    .setFromImage("fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx")
-                    .setImage("fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx-"+osArch)
+                    .setFromImage("docker.io/fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx")
+                    .setImage("docker.io/fizzed/buildx:x64-" + ubuntuVersion + "-jdk11-buildx-"+osArch)
                     .setDescription("Cross compiling to " + osArch + " from " + ubuntuVersion + " x64")
                 );
             }
@@ -150,38 +165,45 @@ public class blaze {
             log.info("####### Starting {} #########", v.getImage());
             log.info("");
 
-            exec("docker", "build",
+            exec("podman", "build",
                 "-f", v.getDockerFile(),
                 "--build-arg", "FROM_IMAGE="+v.getFromImage(),
                 "-t", v.getImage(),
                 setupDir
-            ).run();
+            )
+                .verbose()
+                .run();
 
             log.info("");
             log.info("####### Testing {} #########", v.getImage());
             log.info("");
 
-            exec("docker", "run", "-t", v.getImage(), "sh", "-c", "echo \"Build Target: ${BUILD_TARGET}\"")
+            exec(this.containerExe, "run", "-t", v.getImage(), "sh", "-c", "echo \"Build Target: ${BUILD_TARGET}\"")
                 .run();
 
-            exec("docker", "run", "-t", v.getImage(), "sh", "-c", "echo \"Rust Target: ${RUST_TARGET}\"")
+            exec(this.containerExe, "run", "-t", v.getImage(), "sh", "-c", "echo \"Rust Target: ${RUST_TARGET}\"")
                 .run();
 
-            exec("docker", "run", "-t", v.getImage(), "cargo", "--version")
+            exec(this.containerExe, "run", "-t", v.getImage(), "cargo", "--version")
                 .run();
 
-            exec("docker", "run", "-t", v.getImage(), "cmake", "--version")
+            exec(this.containerExe, "run", "-t", v.getImage(), "cmake", "--version")
                 .run();
 
-            exec("docker", "run", "-t", v.getImage(), "gcc", "--version")
+            exec(this.containerExe, "run", "-t", v.getImage(), "gcc", "--version")
                 .run();
 
-            exec("docker", "run", "-t", v.getImage(), "g++", "--version")
+            exec(this.containerExe, "run", "-t", v.getImage(), "g++", "--version")
                 .run();
 
             log.info("");
             log.info("####### Finished {} #########", v.getImage());
             log.info("");
+        }
+
+        log.info("Finished building =>");
+        for (Container v : this.resolveBuildxContainers()) {
+            log.info("{}", v.getImage());
         }
     }
 
@@ -191,7 +213,26 @@ public class blaze {
             log.info("####### Pushing {} #########", v.getImage());
             log.info("");
 
-            exec("docker", "push", v.getImage()).run();
+            exec(this.containerExe, "push", v.getImage()).run();
+        }
+    }
+
+    private String detectPodmanArch(Container v) {
+        String text = v.getFromImage();
+        NativeTarget nativeTarget = NativeTarget.detectFromText(text);
+        switch (nativeTarget.getHardwareArchitecture()) {
+            case X64:
+                return "amd64";
+            case ARM64:
+                return "arm64/v8";
+            case ARMHF:
+                return "arm32/v7";
+            case ARMEL:
+                return "arm32/v5";
+            case RISCV64:
+                return "riscv64";
+            default:
+                throw new IllegalArgumentException("Unable to detect podman arch for " + text);
         }
     }
 
@@ -201,31 +242,40 @@ public class blaze {
             log.info("####### Starting {} #########", v.getAltImage());
             log.info("");
 
-            exec("docker", "build", "-f", v.getDockerFile(),
+            exec(this.containerExe, "build", "-f", v.getDockerFile(),
                 "--build-arg", "FROM_IMAGE="+v.getFromImage(),
                 "--build-arg", "JAVA_VERSION="+v.getJavaVersion(),
                 "--build-arg", "JAVA_ARCH="+v.getJavaArch(),
+                "--arch", detectPodmanArch(v),
                 "-t", v.getImage(),
                 "-t", v.getAltImage(),
                 setupDir
-            ).run();
+            ).verbose().run();
 
             log.info("");
             log.info("####### Testing {} #########", v.getAltImage());
             log.info("");
 
-            exec("docker", "run", "-t", v.getAltImage(), "java", "-version")
+            exec(this.containerExe, "run", "-t", v.getAltImage(), "java", "-version")
+                .verbose()
                 .run();
 
-            exec("docker", "run", "-t", v.getAltImage(), "mvn", "--version")
+            exec(this.containerExe, "run", "-t", v.getAltImage(), "mvn", "--version")
+                .verbose()
                 .run();
 
-            exec("docker", "run", "-t", v.getAltImage(), "which", "blaze")
+            exec(this.containerExe, "run", "-t", v.getAltImage(), "which", "blaze")
+                .verbose()
                 .run();
 
             log.info("");
             log.info("####### Finished {} #########", v.getAltImage());
             log.info("");
+        }
+
+        log.info("Finished building =>");
+        for (Container v : this.resolveBuildxContainers()) {
+            log.info("{}", v.getImage());
         }
     }
 
@@ -235,8 +285,8 @@ public class blaze {
             log.info("####### Pushing {} #########", v.getImage());
             log.info("");
 
-            exec("docker", "push", v.getImage()).run();
-            exec("docker", "push", v.getAltImage()).run();
+            exec(this.containerExe, "push", v.getImage()).run();
+            exec(this.containerExe, "push", v.getAltImage()).run();
         }
     }
 
