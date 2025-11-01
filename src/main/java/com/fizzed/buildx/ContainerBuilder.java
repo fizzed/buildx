@@ -7,6 +7,7 @@ public class ContainerBuilder {
     private Boolean cache = true;
     private Path dockerFile;
     private Path installScript;
+    private boolean skipMavenSettingsCopy;
 
     public Boolean getCache() {
         return cache;
@@ -32,6 +33,15 @@ public class ContainerBuilder {
 
     public ContainerBuilder setInstallScript(Path installScript) {
         this.installScript = installScript;
+        return this;
+    }
+
+    public boolean isSkipMavenSettingsCopy() {
+        return skipMavenSettingsCopy;
+    }
+
+    public ContainerBuilder setSkipMavenSettingsCopy(boolean skipMavenSettingsCopy) {
+        this.skipMavenSettingsCopy = skipMavenSettingsCopy;
         return this;
     }
 
