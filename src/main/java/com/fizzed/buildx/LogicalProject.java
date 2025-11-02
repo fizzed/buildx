@@ -249,10 +249,10 @@ public class LogicalProject {
         this.exec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
-        // copy user's ~/.m2/settings.xml file?
-        if (!containerBuilder.isSkipMavenSettingsCopy()) {
+        // TODO: copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
+        /*if (!containerBuilder.isSkipMavenSettingsCopy()) {
             this.exec("cp", "")
-        }
+        }*/
 
         Path dockerFile = ofNullable(containerBuilder).map(v -> v.getDockerFile()).orElse(null);
         if (dockerFile == null) {
