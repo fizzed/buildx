@@ -17,19 +17,24 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-# Install maven first since that'll be consistent across images
-RUN curl -s https://raw.githubusercontent.com/jjlauer/provisioning/master/linux/bootstrap-maven.sh | sh -s -- --version=3.9.5
-
 # Install jdk w/ a specific version
-RUN curl -s https://raw.githubusercontent.com/jjlauer/provisioning/master/linux/bootstrap-java.sh | sh -s -- --version=${JAVA_VERSION} --arch=${JAVA_ARCH}
+RUN curl -sfL https://cdn.fizzed.com/provisioning/install-java.sh | sh -s -- --version=${JAVA_VERSION} --arch=${JAVA_ARCH}
 
-ENV M2_HOME="/opt/maven/current"
-ENV JAVA_HOME="/usr/lib/jvm/current"
+# Install maven first since that'll be consistent across images
+RUN curl -sfL https://cdn.fizzed.com/provisioning/install-maven.sh | sh -s -- --skip-elevated-check
+
+# Cleanup files we don't want in final image
+RUN rm -Rf ~/.ivy2
+RUN rm -Rf ~/.blaze
+RUN rm -Rf ~/.m2
+
+ENV M2_HOME="/opt/maven"
+ENV JAVA_HOME="/usr/lib/jvm/jdk-current"
 ENV PATH="${JAVA_HOME}/bin:${M2_HOME}/bin:${PATH}"
 # this fixes the "spawn" error in latest java version
 ENV JDK_JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"
 
 # Install blaze
-RUN curl -o blaze.jar 'https://repo1.maven.org/maven2/com/fizzed/blaze-lite/1.1.0/blaze-lite-1.1.0.jar'
+RUN curl -o blaze.jar 'https://repo1.maven.org/maven2/com/fizzed/blaze-lite/2.1.2/blaze-lite-2.1.2.jar'
 RUN java -jar blaze.jar -i /usr/local/bin
 RUN rm blaze.jar

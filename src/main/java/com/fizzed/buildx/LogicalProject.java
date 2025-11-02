@@ -225,7 +225,8 @@ public class LogicalProject {
         }
 
         log.info("Rsyncing {} -> {}", src, dest);
-        return Systems.exec("rsync", "-avrt", "--delete", "--progress", src, dest);
+        // -a or -t flags can sometimes cause unexpected file permissions issues
+        return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
     }
 
     public void buildContainer() {
@@ -233,7 +234,7 @@ public class LogicalProject {
     }
 
     public void buildContainer(ContainerBuilder containerBuilder) {
-        // this commands MUST be executed on the host we're building the container on
+        // this command MUST be executed on the host we're building the container on
         final String username = this.exec("whoami")
             .runCaptureOutput()
             .toString()
@@ -248,12 +249,9 @@ public class LogicalProject {
         this.exec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
-        /*try {
-            // we need a temp .m2 and .ivy2 (locally is okay since these will be rsynced?)
-            Files.createDirectories(this.relativeDir.resolve(".buildx-temp/m2"));
-            Files.createDirectories(this.relativeDir.resolve(".buildx-temp/ivy2"));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        // TODO: copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
+        /*if (!containerBuilder.isSkipMavenSettingsCopy()) {
+            this.exec("cp", "")
         }*/
 
         Path dockerFile = ofNullable(containerBuilder).map(v -> v.getDockerFile()).orElse(null);

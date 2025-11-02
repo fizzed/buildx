@@ -48,47 +48,46 @@ https://github.com/fizzed/tkrzw/blob/master/setup/blaze.java
 
 These containers contain a single JDK version that is set as the default, along with Maven 3.9.5, and Blaze build tools.
 
-| Container                            | Architecture | JDK    |
-|--------------------------------------|--------------|--------|
-| fizzed/buildx:arm64-alpine3.11-jdk11 | arm64        | JDK 11 |
-| fizzed/buildx:arm64-ubuntu16-jdk11   | arm64        | JDK 11 |
-| fizzed/buildx:arm64-ubuntu18-jdk11   | arm64        | JDK 11 |
-| fizzed/buildx:arm64-ubuntu20-jdk11   | arm64        | JDK 11 |
-| fizzed/buildx:armel-debian11-jdk11   | armel        | JDK 11 |
-| fizzed/buildx:armhf-ubuntu16-jdk11   | armhf        | JDK 11 |
-| fizzed/buildx:armhf-ubuntu18-jdk11   | armhf        | JDK 11 |
-| fizzed/buildx:riscv64-ubuntu20-jdk21 | riscv64      | JDK 21 |
-| fizzed/buildx:x32-ubuntu16-jdk11     | x32          | JDK 11 |
-| fizzed/buildx:x32-ubuntu18-jdk11     | x32          | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk21     | x64          | JDK 21 |
-| fizzed/buildx:x64-ubuntu22-jdk17     | x64          | JDK 17 |
-| fizzed/buildx:x64-alpine3.11-jdk11   | x64          | JDK 11 |
-| fizzed/buildx:x64-ubuntu16-jdk11     | x64          | JDK 11 |
-| fizzed/buildx:x64-ubuntu18-jdk11     | x64          | JDK 11 |
-| fizzed/buildx:x64-ubuntu20-jdk11     | x64          | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk11     | x64          | JDK 11 |
-| fizzed/buildx:x64-ubuntu22-jdk8      | x64          | JDK 8  |
+| Container | Architecture | JDK |
+| --------- | ------------ | --- |
+| docker.io/fizzed/buildx:arm64-alpine3.20-jdk21 | arm64 | JDK 21 |
+| docker.io/fizzed/buildx:arm64-alpine3.11-jdk11 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:arm64-ubuntu16-jdk11 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:arm64-ubuntu18-jdk11 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:arm64-ubuntu20-jdk11 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:armhf-ubuntu16-jdk11 | armhf | JDK 11 |
+| docker.io/fizzed/buildx:armhf-ubuntu18-jdk11 | armhf | JDK 11 |
+| docker.io/fizzed/buildx:riscv64-ubuntu22-jdk21 | riscv64 | JDK 21 |
+| docker.io/fizzed/buildx:x64-ubuntu22-jdk25 | x64 | JDK 25 |
+| docker.io/fizzed/buildx:x64-alpine3.20-jdk21 | x64 | JDK 21 |
+| docker.io/fizzed/buildx:x64-ubuntu22-jdk21 | x64 | JDK 21 |
+| docker.io/fizzed/buildx:x64-ubuntu22-jdk17 | x64 | JDK 17 |
+| docker.io/fizzed/buildx:x64-alpine3.11-jdk11 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:x64-ubuntu20-jdk11 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:x64-ubuntu22-jdk11 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:x64-ubuntu22-jdk8 | x64 | JDK 8 |
 
-These containers are useful from cross building native code. They have latest versions of cmake, gcc, g++, rust, as 
-well as JDK 11.
 
-| Container                                                | Description                                           |
-|----------------------------------------------------------|-------------------------------------------------------|
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x64        | Cross compiling to linux-x64 from ubuntu16 x64        |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x32        | Cross compiling to linux-x32 from ubuntu16 x64        |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-x64   | Cross compiling to linux_musl-x64 from ubuntu16 x64   |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu16 x64 |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-arm64      | Cross compiling to linux-arm64 from ubuntu16 x64      |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armhf      | Cross compiling to linux-armhf from ubuntu16 x64      |
-| fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armel      | Cross compiling to linux-armel from ubuntu16 x64      |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x64        | Cross compiling to linux-x64 from ubuntu18 x64        |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x32        | Cross compiling to linux-x32 from ubuntu18 x64        |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-x64   | Cross compiling to linux_musl-x64 from ubuntu18 x64   |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu18 x64 |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-arm64      | Cross compiling to linux-arm64 from ubuntu18 x64      |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf      | Cross compiling to linux-armhf from ubuntu18 x64      |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel      | Cross compiling to linux-armel from ubuntu18 x64      |
-| fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64    | Cross compiling to linux-riscv64 from ubuntu18 x64    |
+| Container | Description |
+| --------- | ----------- |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu16-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu16 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x64 | Cross compiling to linux-x64 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-x32 | Cross compiling to linux-x32 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-arm64 | Cross compiling to linux-arm64 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armhf | Cross compiling to linux-armhf from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-armel | Cross compiling to linux-armel from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux-riscv64 | Cross compiling to linux-riscv64 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-x64 | Cross compiling to linux_musl-x64 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-arm64 | Cross compiling to linux_musl-arm64 from ubuntu18 x64 |
+| docker.io/fizzed/buildx:x64-ubuntu18-jdk11-buildx-linux_musl-riscv64 | Cross compiling to linux_musl-riscv64 from ubuntu18 x64 |
 
 ## Linux Compatibility
 
@@ -118,32 +117,24 @@ of an operating system. Glibc is an important base library.  Here is a compatibi
 ## Multiple Architecture Containers
 
 You can use an Ubuntu x86_64 host to test a wide variety of hardware architectures and operating systems.
-Install QEMU and various emulators: https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
 
-Option 1 is to use the multiarch method (which only works on an x86_64 host):
+Things have changed with recent Ubuntus, on Ubuntu 25.10:
 
-    sudo apt-get install qemu binfmt-support qemu-user-static
-    docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    sudo apt install binfmt-support qemu-user-binfmt
 
-Option 2 is to use the https://github.com/dbhi/qus method which can work on x86_64 and other arches:
-
-    docker run --rm --privileged aptman/qus -s -- -p 
-
-To unregister associations with either option above
-
-    docker run --rm --privileged aptman/qus -- -r
+I **think** that registers and sets everything up correctly. I had to reboot for it to actually work.
 
 This will now register docker to be able to detect and run various architectures automatically. You can now try it out:
 
-    docker run --rm -t arm64v8/ubuntu dpkg --print-architecture       #arm64
-    docker run --rm -t arm32v7/debian dpkg --print-architecture       #armhf
-    docker run --rm -t arm32v5/debian dpkg --print-architecture       #armel
-    docker run --rm -t riscv64/ubuntu dpkg --print-architecture       #riscv64
-    docker run --rm -t i386/ubuntu dpkg --print-architecture          #i386
+    podman run --rm -it --arch arm64/v8 docker.io/arm64v8/ubuntu dpkg --print-architecture           #arm64
+    podman run --rm -it --arch arm32/v7 docker.io/arm32v7/debian:12.0 dpkg --print-architecture       #armhf
+    podman run --rm -it --arch arm32/v5 docker.io/arm32v5/debian:12.0 dpkg --print-architecture       #armel
+    podman run --rm -it --arch riscv64 docker.io/riscv64/ubuntu dpkg --print-architecture            #riscv64
+    podman run --rm -it --arch i386 docker.io/i386/debian:12.0 dpkg --print-architecture             #i386
 
 If you'd like to try various Java system properties to see what they'd look like:
 
-    docker run --rm -it riscv64/ubuntu
+    podman run --rm -it --arch riscv64 docker.io/riscv64/ubuntu
     apt update
     apt install openjdk-11-jdk-headless
     jshell
