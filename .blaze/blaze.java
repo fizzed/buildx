@@ -1,9 +1,7 @@
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Task;
 import com.fizzed.jne.HardwareArchitecture;
-import com.fizzed.jne.NativeLanguageModel;
 import com.fizzed.jne.NativeTarget;
-import com.fizzed.jne.PlatformInfo;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -91,7 +89,7 @@ public class blaze {
 
         // ubuntu22 + all java version on x64
         for (String arch : asList("amd64")) {
-            for (Integer version : asList(21, 17, 11, 8)) {
+            for (Integer version : asList(25, 21, 17, 11, 8)) {
                 containers.add(new Container()
                     .setDockerFile(dockerFileLinux)
                     .setFromImage("docker.io/"+arch + "/ubuntu:22.04")
@@ -116,14 +114,14 @@ public class blaze {
         }
 
         // alpine3.20 architectures
-        for (String arch : asList("amd64", "arm64v8", "riscv64")) {
+        for (String arch : asList("amd64", "arm64v8")) {            // zulu, liberica, etc. do not publish riscv musl builds yet
             containers.add(new Container()
                 .setDockerFile(dockerFileLinuxMusl)
                 .setFromImage("docker.io/"+arch+"/alpine:3.20")
-                .setJavaVersion(11)
+                .setJavaVersion(21)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.20-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.20-jdk11")
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.20-jdk21")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.20-jdk21")
             );
         }
 
@@ -274,7 +272,7 @@ public class blaze {
         }
 
         log.info("Finished building =>");
-        for (Container v : this.resolveBuildxContainers()) {
+        for (Container v : this.resolveJavaContainers()) {
             log.info("{}", v.getImage());
         }
     }

@@ -23,8 +23,10 @@ RUN curl -sfL https://cdn.fizzed.com/provisioning/install-java.sh | sh -s -- --v
 # Install maven first since that'll be consistent across images
 RUN curl -sfL https://cdn.fizzed.com/provisioning/install-maven.sh | sh -s -- --skip-elevated-check
 
-# Cleanup blaze cache
+# Cleanup files we don't want in final image
 RUN rm -Rf ~/.ivy2
+RUN rm -Rf ~/.blaze
+RUN rm -Rf ~/.m2
 
 ENV M2_HOME="/opt/maven"
 ENV JAVA_HOME="/usr/lib/jvm/jdk-current"
@@ -33,6 +35,6 @@ ENV PATH="${JAVA_HOME}/bin:${M2_HOME}/bin:${PATH}"
 ENV JDK_JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"
 
 # Install blaze
-RUN curl -o blaze.jar 'https://repo1.maven.org/maven2/com/fizzed/blaze-lite/2.0.4/blaze-lite-2.0.4.jar'
+RUN curl -o blaze.jar 'https://repo1.maven.org/maven2/com/fizzed/blaze-lite/2.1.2/blaze-lite-2.1.2.jar'
 RUN java -jar blaze.jar -i /usr/local/bin
 RUN rm blaze.jar
