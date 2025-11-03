@@ -4,25 +4,19 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
-import com.fizzed.blaze.util.StreamableOutput;
-import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
-import static com.fizzed.blaze.Systems.exec;
+import static com.fizzed.buildx.FileAppendingStreamableOutput.fileAppendingOutput;
 import static java.util.Optional.ofNullable;
 
 public class LogicalProject {
     private final Logger log = Contexts.logger();
 
-    private OutputStream outputRedirect;
+    private final Path outputFile;
     private final Target target;
     private final String containerPrefix;
     private final Path absoluteDir;
@@ -33,8 +27,8 @@ public class LogicalProject {
     private final String pathSeparator;
     private String containerExe;
 
-    public LogicalProject(OutputStream outputRedirect, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
-        this.outputRedirect = outputRedirect;
+    public LogicalProject(Path outputFile, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
+        this.outputFile = outputFile;
         this.target = target;
         this.containerPrefix = containerPrefix;
         this.absoluteDir = absoluteDir;
@@ -201,10 +195,10 @@ public class LogicalProject {
         }
 
         // do we need to route the output to a file?
-        /*if (this.outputRedirect != null) {
-            exec.pipeOutput(this.outputRedirect);
-            exec.pipeError(this.outputRedirect);
-        }*/
+        if (this.outputFile != null) {
+            exec.pipeOutput(fileAppendingOutput(this.outputFile));
+            exec.pipeErrorToOutput();
+        }
 
         return exec;
     }
@@ -228,9 +222,9 @@ public class LogicalProject {
         Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
 
         // do we need to route the output to a file?
-        if (this.outputRedirect != null) {
-            exec.pipeOutput(this.outputRedirect);
-            exec.pipeError(this.outputRedirect);
+        if (this.outputFile != null) {
+            exec.pipeOutput(fileAppendingOutput(this.outputFile));
+            exec.pipeErrorToOutput();
         }
 
         return exec;

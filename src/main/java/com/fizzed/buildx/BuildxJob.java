@@ -11,7 +11,7 @@ public class BuildxJob implements Runnable {
     private final Logger log = Contexts.logger();
 
     private final AtomicReference<BuildxJobStatus> statusRef;
-    private final Result result;
+    private Result result;
     private final int id;
     private final ProjectExecute projectExecute;
     private final Target target;
@@ -21,7 +21,7 @@ public class BuildxJob implements Runnable {
     public BuildxJob(int id, ProjectExecute projectExecute, Target target, LogicalProject project, SshSession sshSession) {
         this.id = id;
         this.statusRef = new AtomicReference<>(BuildxJobStatus.PENDING);
-        this.result = new Result(System.currentTimeMillis());
+        this.result = null;
         this.projectExecute = projectExecute;
         this.target = target;
         this.project = project;
@@ -47,6 +47,7 @@ public class BuildxJob implements Runnable {
     @Override
     public void run() {
         try {
+            this.result = new Result(System.currentTimeMillis());
             this.statusRef.set(BuildxJobStatus.RUNNING);
 
             this.projectExecute.execute(target, project);

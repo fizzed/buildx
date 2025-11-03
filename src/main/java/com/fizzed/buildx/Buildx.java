@@ -7,14 +7,12 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.blaze.util.StreamableOutput;
 import com.fizzed.blaze.util.Streamables;
 import org.slf4j.Logger;
 
 import java.io.*;
 import java.nio.file.*;
 import java.text.DecimalFormat;
-import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +27,7 @@ import static com.fizzed.blaze.Contexts.withBaseDir;
 import static com.fizzed.blaze.SecureShells.sshConnect;
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
+import static com.fizzed.buildx.FileAppendingStreamableOutput.fileAppendingOutput;
 import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 
@@ -193,15 +192,16 @@ public class Buildx {
             final LogicalProject project;
             final SshSession sshSession;
             Path outputFile = null;
-            OutputStream outputRedirect = null;
+            //OutputStream outputRedirect = null;
 
             if (this.parallel) {
                 outputFile = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + ".log");
+                outputFile = absProjectDir.relativize(outputFile);
                 Files.createDirectories(outputFile.getParent());
-                outputRedirect = new CloseGuardedOutputStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
+                /*outputRedirect = new CloseGuardedOutputStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
                 String s = "Target " + target + "\n\n";
                 outputRedirect.write(s.getBytes());
-                outputRedirect.flush();
+                outputRedirect.flush();*/
             }
 
             log.info("");
@@ -255,16 +255,16 @@ public class Buildx {
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
                 Exec exec = exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/");
                 if (outputFile != null) {
-                    exec.pipeOutput(outputRedirect);
-                    exec.pipeError(outputRedirect);
+                    exec.pipeOutput(fileAppendingOutput(outputFile));
+                    exec.pipeErrorToOutput();
                 }
                 exec.run();
 
-                project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
+                project = new LogicalProject(outputFile, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
             } else {
                 sshSession = null;
 
-                project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
+                project = new LogicalProject(outputFile, target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
             }
 
             //
@@ -313,27 +313,33 @@ public class Buildx {
             jobs.add(new BuildxJob(jobId, projectExecute, target, project, sshSession));
         }
 
-        // start the jobs....
-        final ExecutorService executor = Executors.newFixedThreadPool(jobs.size());
-        try {
-            for (BuildxJob job : jobs) {
-                executor.submit(job);
-            }
-
-            // wait for all jobs to finish
-            JOB_WAIT_LOOP:
-            while (true) {
-                Thread.sleep(1000);
+        if (this.parallel) {
+            // start the jobs....
+            final ExecutorService executor = Executors.newFixedThreadPool(jobs.size());
+            try {
                 for (BuildxJob job : jobs) {
-                    if (job.getStatus() != BuildxJobStatus.COMPLETED) {
-                        log.debug("Job {} is still {}", job.getId(), job.getStatus());
-                        continue JOB_WAIT_LOOP;
-                    }
+                    executor.submit(job);
                 }
-                break JOB_WAIT_LOOP;
+
+                // wait for all jobs to finish
+                JOB_WAIT_LOOP:
+                while (true) {
+                    Thread.sleep(1000);
+                    for (BuildxJob job : jobs) {
+                        if (job.getStatus() != BuildxJobStatus.COMPLETED) {
+                            log.debug("Job {} is still {}", job.getId(), job.getStatus());
+                            continue JOB_WAIT_LOOP;
+                        }
+                    }
+                    break JOB_WAIT_LOOP;
+                }
+            } finally {
+                executor.shutdown();
             }
-        } finally {
-            executor.shutdown();
+        } else {
+            for (BuildxJob job : jobs) {
+                job.run();
+            }
         }
 
         if (this.resultsFile != null) {
