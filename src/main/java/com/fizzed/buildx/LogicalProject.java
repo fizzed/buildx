@@ -4,10 +4,12 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
+import com.fizzed.blaze.util.StreamableOutput;
 import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +22,7 @@ import static java.util.Optional.ofNullable;
 public class LogicalProject {
     private final Logger log = Contexts.logger();
 
+    private OutputStream outputRedirect;
     private final Target target;
     private final String containerPrefix;
     private final Path absoluteDir;
@@ -30,7 +33,8 @@ public class LogicalProject {
     private final String pathSeparator;
     private String containerExe;
 
-    public LogicalProject(Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
+    public LogicalProject(OutputStream outputRedirect, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
+        this.outputRedirect = outputRedirect;
         this.target = target;
         this.containerPrefix = containerPrefix;
         this.absoluteDir = absoluteDir;
@@ -184,31 +188,25 @@ public class LogicalProject {
      */
     public Exec exec(String path, Object... arguments) {
         // is remote?
+        Exec exec;
+
         if (this.sshSession != null) {
-            return sshExec(sshSession, this.sshShellExecScript(), path)
+            exec = sshExec(sshSession, this.sshShellExecScript(), path)
                 .args(arguments)
                 .workingDir(this.remotePath(""));
         } else {
-            return Systems.exec(path)
+            exec = Systems.exec(path)
                 .args(arguments)
                 .workingDir(this.absoluteDir);
         }
 
-
-        /*final String actionScript;
-        if (this.sshSession != null) {
-            // sshShellExecScript already makes the command relative
-            actionScript = this.remotePath(path);
-        } else {
-            actionScript = this.relativePath(path);
-        }
-
-        // is remote?
-        if (this.sshSession != null) {
-            return sshExec(sshSession, actionScript).args(arguments).workingDir(this.remotePath(""));
-        } else {
-            return Systems.exec(actionScript).args(arguments);
+        // do we need to route the output to a file?
+        /*if (this.outputRedirect != null) {
+            exec.pipeOutput(this.outputRedirect);
+            exec.pipeError(this.outputRedirect);
         }*/
+
+        return exec;
     }
 
     public Exec rsync(String sourcePath, String destPath) {
@@ -225,8 +223,17 @@ public class LogicalProject {
         }
 
         log.info("Rsyncing {} -> {}", src, dest);
+
         // -a or -t flags can sometimes cause unexpected file permissions issues
-        return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
+        Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
+
+        // do we need to route the output to a file?
+        if (this.outputRedirect != null) {
+            exec.pipeOutput(this.outputRedirect);
+            exec.pipeError(this.outputRedirect);
+        }
+
+        return exec;
     }
 
     public void buildContainer() {

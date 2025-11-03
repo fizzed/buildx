@@ -4,14 +4,14 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.core.BlazeException;
 import com.fizzed.blaze.core.ExecutableNotFoundException;
 import com.fizzed.blaze.ssh.SshSession;
+import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CaptureOutput;
+import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.blaze.util.StreamableOutput;
 import com.fizzed.blaze.util.Streamables;
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
+import java.io.*;
 import java.nio.file.*;
 import java.text.DecimalFormat;
 import java.time.DateTimeException;
@@ -19,6 +19,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -39,20 +42,22 @@ public class Buildx {
     protected final List<Target> targets;
     protected Set<String> tags;
     protected final List<Predicate<Target>> filters;
+    protected boolean parallel;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
         this.filters = new ArrayList<>();
 
-         this.log = Contexts.logger();
-         this.relProjectDir = withBaseDir("..");
-         try {
-             this.absProjectDir = relProjectDir.toRealPath();
-         } catch (IOException e) {
-             throw new UncheckedIOException(e);
-         }
-         this.resultsFile = this.absProjectDir.resolve("buildx-results.txt");
-         this.containerPrefix = absProjectDir.getFileName().toString();
+        this.log = Contexts.logger();
+        this.relProjectDir = withBaseDir("..");
+        try {
+         this.absProjectDir = relProjectDir.toRealPath();
+        } catch (IOException e) {
+         throw new UncheckedIOException(e);
+        }
+        this.resultsFile = this.absProjectDir.resolve("buildx-results.txt");
+        this.containerPrefix = absProjectDir.getFileName().toString();
+        this.parallel = false;
     }
 
     public List<Target> getTargets() {
@@ -89,6 +94,15 @@ public class Buildx {
 
     public Buildx containersOnly() {
         this.filters.add(Target::hasContainer);
+        return this;
+    }
+
+    public Buildx parallel() {
+        return this.parallel(true);
+    }
+
+    public Buildx parallel(boolean parallel) {
+        this.parallel = parallel;
         return this;
     }
 
@@ -151,6 +165,7 @@ public class Buildx {
 
         createBuildxDirectory(absProjectDir);
 
+        final String executeId = ""+System.currentTimeMillis();
         final List<Target> filteredTargets = this.filteredTargets();
 
         log.info("");
@@ -159,27 +174,45 @@ public class Buildx {
         log.info("  relativeDir: {}", relProjectDir);
         log.info("  absoluteDir: {}", absProjectDir);
         log.info("  containerPrefix: {}", containerPrefix);
+        log.info("  executeId: {}", executeId);
         log.info("  targets:");
         for (Target target : filteredTargets) {
             log.info("    {}", target);
         }
 
         // we'll keep track of how long things took
-        final Map<Target,Result> results = new HashMap<>();
+        //final Map<Target,Result> results = new HashMap<>();
+        final List<BuildxJob> jobs = new ArrayList<>();
+        final AtomicInteger jobCounter = new AtomicInteger(0);
 
         for (Target target : filteredTargets) {
             final long startMillis = System.currentTimeMillis();
+            final int jobId = jobCounter.getAndIncrement();
             final Result result = new Result(startMillis);
+            final boolean container = target.getContainerImage() != null;
+            final LogicalProject project;
+            final SshSession sshSession;
+            Path outputFile = null;
+            OutputStream outputRedirect = null;
+
+            if (this.parallel) {
+                outputFile = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + ".log");
+                Files.createDirectories(outputFile.getParent());
+                outputRedirect = new CloseGuardedOutputStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
+                String s = "Target " + target + "\n\n";
+                outputRedirect.write(s.getBytes());
+                outputRedirect.flush();
+            }
 
             log.info("");
             log.info(fixedWidthCentered("Executing " + target, '=', 100));
             log.info("");
             logTarget(target);
+            log.info("jobId: {}", jobId);
+            if (outputFile != null) {
+                log.info("outputRedirect: {}", outputFile);
+            }
             log.info("");
-
-            final boolean container = target.getContainerImage() != null;
-            LogicalProject project = null;
-            SshSession sshSession = null;
 
             if (target.getHost() != null) {
                 sshSession = sshConnect("ssh://" + target.getHost()).run();
@@ -220,13 +253,18 @@ public class Buildx {
                 String sshHost = target.getHost();
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/").run();
-                // copy over the temp .buildx directory for resources we need on the remote side
-//                exec("rsync", "-vr", "--delete", "--progress", buildxDirectory+"/", sshHost+":"+remoteProjectDir+"/.buildx").run();
+                Exec exec = exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/");
+                if (outputFile != null) {
+                    exec.pipeOutput(outputRedirect);
+                    exec.pipeError(outputRedirect);
+                }
+                exec.run();
 
-                project = new LogicalProject(target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
+                project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
             } else {
-                project = new LogicalProject(target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
+                sshSession = null;
+
+                project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
             }
 
             //
@@ -234,9 +272,10 @@ public class Buildx {
             //
             String containerExe = null;
             if (container) {
-                // is there podman?
-                log.info("Detecting if podman is installed...");
+                log.info("Detecting which container runtime to use...");
+
                 try {
+                    // is there podman?
                     project.exec("podman", "-v")
                         .pipeOutput(Streamables.nullOutput())
                         .pipeError(Streamables.nullOutput())
@@ -248,7 +287,6 @@ public class Buildx {
                 }
 
                 if (containerExe == null) {
-                    log.info("Detecting if docker is installed...");
                     // is there docker?
                     try {
                         project.exec("docker", "-v")
@@ -271,26 +309,31 @@ public class Buildx {
                 project.setContainerExe(containerExe);
             }
 
+            // we are now ready to create a buildx job to run it
+            jobs.add(new BuildxJob(jobId, projectExecute, target, project, sshSession));
+        }
 
-            ExecuteStatus status = null;
-            try {
-                projectExecute.execute(target, project);
-
-                result.setStatus(ExecuteStatus.SUCCESS);
-            } catch (SkipException e) {
-                result.setStatus(ExecuteStatus.SKIPPED);
-                result.setMessage(e.getMessage());
-            } catch (FailException e) {
-                result.setStatus(ExecuteStatus.FAILED);
-                result.setMessage(e.getMessage());
+        // start the jobs....
+        final ExecutorService executor = Executors.newFixedThreadPool(jobs.size());
+        try {
+            for (BuildxJob job : jobs) {
+                executor.submit(job);
             }
 
-            result.setEndMillis(System.currentTimeMillis());
-            results.put(target, result);
-
-            if (sshSession != null) {
-                sshSession.close();
+            // wait for all jobs to finish
+            JOB_WAIT_LOOP:
+            while (true) {
+                Thread.sleep(1000);
+                for (BuildxJob job : jobs) {
+                    if (job.getStatus() != BuildxJobStatus.COMPLETED) {
+                        log.debug("Job {} is still {}", job.getId(), job.getStatus());
+                        continue JOB_WAIT_LOOP;
+                    }
+                }
+                break JOB_WAIT_LOOP;
             }
+        } finally {
+            executor.shutdown();
         }
 
         if (this.resultsFile != null) {
@@ -309,8 +352,9 @@ public class Buildx {
             sb.append("Commit: ").append(gitCommitHash).append("\r\n");
             sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\r\n");
             sb.append("\r\n");
-            for (Target target : filteredTargets) {
-                final Result result = results.get(target);
+            for (BuildxJob job : jobs) {
+                final Target target = job.getTarget();
+                final Result result = job.getResult();
                 final String name = ofNullable(target.getOsArch()).orElse("");
                 final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
                 String appendMessage = result.getStatus().name().toLowerCase();
@@ -327,8 +371,9 @@ public class Buildx {
         log.info("");
         log.info(fixedWidthCentered("Buildx Results", '=', 100));
         log.info("");
-        for (Target target : filteredTargets) {
-            final Result result = results.get(target);
+        for (BuildxJob job : jobs) {
+            final Target target = job.getTarget();
+            final Result result = job.getResult();
             final long durationMillis = result.getEndMillis() - result.getStartMillis();
             final double durationSecs = (double)durationMillis/1000d;
 
