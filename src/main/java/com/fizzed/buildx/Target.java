@@ -19,12 +19,11 @@ public class Target {
         this(name, null, null);
     }
 
-    @Deprecated
     public Target(String name, String additionalName) {
         this(name, additionalName, null);
     }
 
-    private Target(String name, String additionalName, String description) {
+    public Target(String name, String additionalName, String description) {
         this.name = (additionalName != null ? name + "-" + additionalName : name);
         this.description = description;
         validateName(this.name);
