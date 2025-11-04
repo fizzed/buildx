@@ -1,43 +1,45 @@
 package com.fizzed.buildx;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import static com.fizzed.buildx.internal.BuildxHelper.sanitizeTargetDescription;
-import static com.fizzed.buildx.internal.BuildxHelper.validateOsArch;
 import static java.util.Arrays.asList;
 
 public class Target {
 
-    private final String os;
-    private final String arch;
-    private final String description;
+    private final String name;
+    private String description;
     private String host;
     private String containerImage;
     private Set<String> tags;
+    private Map<String,Object> data;
 
-    public Target(String os, String arch) {
-        this(os, arch, null);
+    public Target(String name) {
+        this(name, null, null);
     }
 
-    public Target(String os, String arch, String description) {
-        this.os = os;
-        this.arch = arch;
+    public Target(String name, String additionalName) {
+        this(name, additionalName, null);
+    }
+
+    public Target(String name, String additionalName, String description) {
+        this.name = (additionalName != null ? name + "-" + additionalName : name);
         this.description = description;
-        validateOsArch(this.os);
-        validateOsArch(this.arch);
+        validateName(this.name);
     }
 
-    public String getOs() {
-        return this.os;
-    }
-
-    public String getArch() {
-        return this.arch;
+    public String getName() {
+        return name;
     }
 
     public String getDescription() {
         return description;
+    }
+
+    public Target setDescription(String description) {
+        this.description = description;
+        return this;
     }
 
     public String getHost() {
@@ -81,12 +83,21 @@ public class Target {
         return this;
     }
 
-    public String getOsArch() {
-        return this.os + "-" + this.arch;
+    public Map<String,Object> getData() {
+        return data;
     }
 
-    public boolean isWindows() {
-        return this.os != null && this.os.contains("windows");
+    public Target setData(Map<String,Object> data) {
+        this.data = data;
+        return this;
+    }
+
+    public Target putData(String key, Object value) {
+        if (this.data == null) {
+            this.data = new java.util.LinkedHashMap<>();
+        }
+        this.data.put(key, value);
+        return this;
     }
 
     public String resolveContainerName(String containerPrefix) {
@@ -94,10 +105,10 @@ public class Target {
         final StringBuilder sb = new StringBuilder();
         sb.append(containerPrefix);
         sb.append("-");
-        sb.append(this.getOsArch());
+        sb.append(this.getName());
         if (this.description != null) {
             sb.append("-");
-            sb.append(sanitizeTargetDescription(this.description));
+            sb.append(sanitizeDescription(this.description));
         }
         if (this.tags != null) {
             for (String tag : this.tags) {
@@ -111,13 +122,30 @@ public class Target {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(this.getOsArch());
+        sb.append(this.getName());
         if (this.description != null) {
             sb.append(" (");
             sb.append(this.description);
             sb.append(")");
         }
         return sb.toString();
+    }
+
+    static public void validateName(String v) {
+        if (v == null || v.trim().isEmpty()) {
+            throw new IllegalArgumentException("Name must not be null or empty");
+        }
+        if (!v.matches("[a-z0-9_\\-]{1,}")) {
+            throw new IllegalArgumentException("Name contained invalid chars (must be lowercase, number, or underscore) (was " + v + ")");
+        }
+    }
+
+    static public String sanitizeDescription(String description) {
+        if (description != null) {
+            // only allow a few chars thru as the description
+            description = description.replaceAll("[^a-zA-Z0-9.\\-_]", "");
+        }
+        return description;
     }
 
 }
