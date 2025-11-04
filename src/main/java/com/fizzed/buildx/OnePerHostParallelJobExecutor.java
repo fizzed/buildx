@@ -73,9 +73,6 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
             int lastFailedMessageLines = 0;
 
             while (completedJobs < totalJobs) {
-                // progress looks nicer with random amount of elapsed time
-//                long randomSleep = java.util.concurrent.ThreadLocalRandom.current().nextLong(500, 1201);
-//                Thread.sleep(randomSleep);
                 Thread.sleep(1000);      // predictable is better for spinner rendering
 
                 // re-calculate totals
@@ -106,8 +103,8 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                     "  [" + spinner.next() + "] completed " + completedJobs + " / " + totalJobs + " jobs " +
                     "[" + (runningJobs > 0 ? cyanCode() : "") + "running: " + runningJobs + resetCode() + ", " +
                     (pendingJobs > 0 ? magentaCode() : "") + "pending: " + pendingJobs + resetCode() + ", "
-                    + (successJobs > 0 ? greenCode() : "") + "success=" + successJobs + resetCode()
-                    + ", " + (failedJobs > 0 ? redCode() : "") + "failed=" + failedJobs + resetCode() + "] elapsed " + timer);
+                    + (successJobs > 0 ? greenCode() : "") + "success: " + successJobs + resetCode()
+                    + ", " + (failedJobs > 0 ? redCode() : "") + "failed: " + failedJobs + resetCode() + "] elapsed " + timer);
 
                 lastFailedMessageLines = 0;
                 for (BuildxJob job : jobs) {
