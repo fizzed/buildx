@@ -4,19 +4,22 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
+import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.jne.HardwareArchitecture;
+import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
-import static com.fizzed.buildx.FileAppendingStreamableOutput.fileAppendingOutput;
 import static java.util.Optional.ofNullable;
 
 public class LogicalProject {
     private final Logger log = Contexts.logger();
 
-    private final Path outputFile;
+    private final PrintStream outputRedirect;
     private final Target target;
     private final String containerPrefix;
     private final Path absoluteDir;
@@ -24,11 +27,14 @@ public class LogicalProject {
     private final String remoteDir;
     private final boolean container;
     private final SshSession sshSession;
-    private final String pathSeparator;
-    private String containerExe;
+    private final String fileSeparator;
+    private final String containerExe;
+    private final OperatingSystem hostOs;
+    private final HardwareArchitecture hostArch;
 
-    public LogicalProject(Path outputFile, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir, boolean container, SshSession sshSession, String pathSeparator) {
-        this.outputFile = outputFile;
+    public LogicalProject(PrintStream outputRedirect, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir,
+                          boolean container, SshSession sshSession, String containerExe, String fileSeparator, OperatingSystem hostOs, HardwareArchitecture hostArch) {
+        this.outputRedirect = outputRedirect;
         this.target = target;
         this.containerPrefix = containerPrefix;
         this.absoluteDir = absoluteDir;
@@ -36,8 +42,10 @@ public class LogicalProject {
         this.remoteDir = remoteDir;
         this.container = container;
         this.sshSession = sshSession;
-        this.pathSeparator = pathSeparator;
-        this.containerExe = null;
+        this.fileSeparator = fileSeparator;
+        this.containerExe = containerExe;
+        this.hostOs = hostOs;
+        this.hostArch = hostArch;
     }
 
     public String getContainerName() {
@@ -68,24 +76,31 @@ public class LogicalProject {
         return this.container;
     }
 
-    public String getPathSeparator() {
-        return pathSeparator;
+    public String getFileSeparator() {
+        return fileSeparator;
     }
 
     public String getContainerExe() {
         return containerExe;
     }
 
-    public LogicalProject setContainerExe(String containerExe) {
-        this.containerExe = containerExe;
-        return this;
+    public OperatingSystem getHostOs() {
+        return hostOs;
+    }
+
+    public HardwareArchitecture getHostArch() {
+        return hostArch;
+    }
+
+    public PrintStream out() {
+        return this.outputRedirect;
     }
 
     // helpers
 
     public String relativePath(String path) {
         // we need to help retain trailing "/"'s on the path if they exist since those matter to rsync
-        return this.relativeDir.resolve(".").toString() + "/" + path;
+        return this.relativeDir.resolve(".") + "/" + path;
         //return this.relativeDir.resolve(".").resolve(path).normalize().toString();
     }
 
@@ -102,13 +117,13 @@ public class LogicalProject {
 
         // do we need to fix the path provided?
         if (pathSeparatorAdjusted) {
-            remotePath = remotePath.replace("/", this.pathSeparator);
+            remotePath = remotePath.replace("/", this.fileSeparator);
         }
 
         return remotePath;
     }
 
-    public String actionPath(String path) {
+    /*public String actionPath(String path) {
         // is in container?
         if (this.container) {
             return "/project/" + path;
@@ -119,10 +134,10 @@ public class LogicalProject {
             // otherwise, local host path
             return this.relativePath(path);
         }
-    }
+    }*/
 
     private String sshShellExecScript() {
-        if (this.target.isWindows()) {
+        if (this.hostOs == OperatingSystem.WINDOWS) {
             return this.remotePath(".buildx/exec.bat");
         } else {
             return this.remotePath(".buildx/exec.sh");
@@ -132,7 +147,7 @@ public class LogicalProject {
     /**
      * Executes a command ON the logical project such as in a container.
      */
-    public Exec action(String path, Object... arguments) {
+    public Exec exec(String exeOrNameOfExe, Object... arguments) {
 
         /*// run every command in our wrapper script
         final String actionScript = this.target.isWindows() ? this.actionPath(".buildx/exec.bat") : this.actionPath(".buildx/exec.sh");
@@ -146,7 +161,7 @@ public class LogicalProject {
         }
         arguments = newArguments;*/
 
-        final String actionScript = path;
+        //final String actionScript = path;
 
         // is remote?
         if (this.sshSession != null) {
@@ -154,11 +169,11 @@ public class LogicalProject {
                 // SSH + Container (we need to map the remote path! for docker)
                 // adding ":z" fixes podman to mount as the user
                 // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
-                return this.exec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), actionScript)
+                return this.hostExec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), exeOrNameOfExe)
                     .args(arguments);
             } else {
                 // SSH
-                return this.exec(actionScript)
+                return this.hostExec(exeOrNameOfExe)
                     .args(arguments);
             }
         } else {
@@ -167,36 +182,38 @@ public class LogicalProject {
                 // LOCAL + Container (we need to map the local path! for docker)
                 // adding ":z" fixes podman to mount as the user
                 // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
-                return this.exec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), actionScript)
+                return this.hostExec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), exeOrNameOfExe)
                     .args(arguments);
             } else {
                 // LOCAL
-                return this.exec(actionScript)
+                return this.hostExec(exeOrNameOfExe)
                     .args(arguments);
             }
         }
     }
 
     /**
-     * Executes a command ON the host machine of the target.
+     * Executes a command ON the host machine of the target.  So if you are running things in a container, this method
+     * will NOT run in the container, it'll run on the host of the container.
      */
-    public Exec exec(String path, Object... arguments) {
+    public Exec hostExec(String exeOrNameOfExe, Object... arguments) {
         // is remote?
         Exec exec;
 
         if (this.sshSession != null) {
-            exec = sshExec(sshSession, this.sshShellExecScript(), path)
+            exec = sshExec(sshSession, this.sshShellExecScript(), exeOrNameOfExe)
                 .args(arguments)
                 .workingDir(this.remotePath(""));
         } else {
-            exec = Systems.exec(path)
+            exec = Systems.exec(exeOrNameOfExe)
                 .args(arguments)
                 .workingDir(this.absoluteDir);
         }
 
         // do we need to route the output to a file?
-        if (this.outputFile != null) {
-            exec.pipeOutput(fileAppendingOutput(this.outputFile));
+        if (this.outputRedirect != null) {
+            // NOTE: we must protect against the stream getting closed
+            exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect));
             exec.pipeErrorToOutput();
         }
 
@@ -216,14 +233,20 @@ public class LogicalProject {
             src = this.relativePath(sourcePath);
         }
 
-        log.info("Rsyncing {} -> {}", src, dest);
+        // on windows, we need to fix path to match how "cygwin" does it
+        if (this.hostOs == OperatingSystem.WINDOWS) {
+            src = src.replace("C:\\", "/cygdrive/c/");
+        }
+
+        log.debug("Rsyncing {} -> {}", src, dest);
 
         // -a or -t flags can sometimes cause unexpected file permissions issues
         Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
 
         // do we need to route the output to a file?
-        if (this.outputFile != null) {
-            exec.pipeOutput(fileAppendingOutput(this.outputFile));
+        if (this.outputRedirect != null) {
+            // NOTE: we must protect against the stream getting closed
+            exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect));
             exec.pipeErrorToOutput();
         }
 
@@ -236,18 +259,18 @@ public class LogicalProject {
 
     public void buildContainer(ContainerBuilder containerBuilder) {
         // this command MUST be executed on the host we're building the container on
-        final String username = this.exec("whoami")
+        final String username = this.hostExec("whoami")
             .runCaptureOutput()
             .toString()
             .trim();
 
-        final String userId = this.exec("id", "-u", username)
+        final String userId = this.hostExec("id", "-u", username)
             .runCaptureOutput()
             .toString()
             .trim();
 
         // create build cache for m2 and ivy2
-        this.exec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
+        this.hostExec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
         // TODO: copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
@@ -270,7 +293,7 @@ public class LogicalProject {
 
         boolean cache = ofNullable(containerBuilder).map(v -> v.getCache()).orElse(true);
 
-        Exec exec = this.exec(this.containerExe, "build", "-f", dockerFile);
+        Exec exec = this.hostExec(this.containerExe, "build", "-f", dockerFile);
 
         if (!cache) {
             exec.arg("--no-cache");

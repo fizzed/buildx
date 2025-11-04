@@ -5,7 +5,12 @@ import com.fizzed.blaze.ssh.SshSession;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static com.fizzed.blaze.util.TerminalHelper.fixedWidthCenter;
+import static com.fizzed.blaze.util.TerminalHelper.fixedWidthLeft;
 
 public class BuildxJob implements Runnable {
     private final Logger log = Contexts.logger();
@@ -17,8 +22,11 @@ public class BuildxJob implements Runnable {
     private final Target target;
     private final LogicalProject project;
     private final SshSession sshSession;
+    private final boolean parallel;
+    private final Path outputFile;
+    private final PrintStream outputRedirect;
 
-    public BuildxJob(int id, ProjectExecute projectExecute, Target target, LogicalProject project, SshSession sshSession) {
+    public BuildxJob(int id, ProjectExecute projectExecute, Target target, LogicalProject project, SshSession sshSession, boolean parallel, Path outputFile, PrintStream outputRedirect) {
         this.id = id;
         this.statusRef = new AtomicReference<>(BuildxJobStatus.PENDING);
         this.result = null;
@@ -26,6 +34,9 @@ public class BuildxJob implements Runnable {
         this.target = target;
         this.project = project;
         this.sshSession = sshSession;
+        this.parallel = parallel;
+        this.outputFile = outputFile;
+        this.outputRedirect = outputRedirect;
     }
 
     public int getId() {
@@ -44,6 +55,18 @@ public class BuildxJob implements Runnable {
         return this.target;
     }
 
+    public boolean isParallel() {
+        return parallel;
+    }
+
+    public Path getOutputFile() {
+        return outputFile;
+    }
+
+    public PrintStream getOutputRedirect() {
+        return outputRedirect;
+    }
+
     @Override
     public void run() {
         try {
@@ -59,7 +82,18 @@ public class BuildxJob implements Runnable {
         } catch (Throwable t) {
             this.result.setStatus(ExecuteStatus.FAILED);
             this.result.setMessage(t.getMessage());
-            log.error("Error executing job {}", this.id, t);
+            // if we're not parallel, log the stacktrace to the console too
+            if (!this.parallel) {
+                log.error(fixedWidthCenter("Job #" + this.getId() + " Failed", 100, '#'));
+                log.error("Error executing target {}: {}", this.target, t.getMessage());
+            }
+            // always dump the stacktrace to the log
+            t.printStackTrace(this.outputRedirect);
+            // log footer to console
+            if (!this.parallel) {
+                log.error(fixedWidthLeft("", 100, '#'));
+            }
+
         } finally {
             this.result.setEndMillis(System.currentTimeMillis());
             this.statusRef.set(BuildxJobStatus.COMPLETED);

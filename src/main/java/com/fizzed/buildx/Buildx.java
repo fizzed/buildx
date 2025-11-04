@@ -1,24 +1,17 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
-import com.fizzed.blaze.core.BlazeException;
-import com.fizzed.blaze.core.ExecutableNotFoundException;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
-import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
 import com.fizzed.blaze.util.Streamables;
+import com.fizzed.jne.OperatingSystem;
+import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 
 import java.io.*;
 import java.nio.file.*;
-import java.text.DecimalFormat;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -27,7 +20,8 @@ import static com.fizzed.blaze.Contexts.withBaseDir;
 import static com.fizzed.blaze.SecureShells.sshConnect;
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
-import static com.fizzed.buildx.FileAppendingStreamableOutput.fileAppendingOutput;
+import static com.fizzed.blaze.util.Streamables.nullOutput;
+import static com.fizzed.blaze.util.TerminalHelper.*;
 import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 
@@ -126,7 +120,7 @@ public class Buildx {
 
         // build a final list of targets, applying the various filters
         return this.targets.stream()
-            .filter(v -> targetsFilter == null || targetsFilter.stream().anyMatch(a -> v.getOsArch().contains(a)))
+            .filter(v -> targetsFilter == null || targetsFilter.stream().anyMatch(a -> v.getName().contains(a)))
             .filter(v -> tagsFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsFilter)))
             .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
             .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
@@ -137,14 +131,14 @@ public class Buildx {
     private void logTarget(Target target) {
         log.info("{}", target);
         if (target.getContainerImage() != null) {
-            log.info(" with container {}", target.getContainerImage());
-            log.info(" named {}", target.resolveContainerName(this.containerPrefix));
+            log.info("  with container {}", target.getContainerImage());
+            log.info("  named {}", target.resolveContainerName(this.containerPrefix));
         }
         if (target.getHost() != null) {
-            log.info(" on host {}", target.getHost());
+            log.info("  on host {}", target.getHost());
         }
         if (target.getTags() != null) {
-            log.info(" tagged {}", target.getTags());
+            log.info("  tagged {}", target.getTags());
         }
     }
 
@@ -166,241 +160,131 @@ public class Buildx {
 
         final String executeId = ""+System.currentTimeMillis();
         final List<Target> filteredTargets = this.filteredTargets();
+        final JobExecutor jobExecutor = this.parallel ? new OnePerHostParallelJobExecutor() : new SerialJobExecutor();
 
-        log.info("");
-        log.info(fixedWidthCentered("Buildx Starting", '=', 100));
-        log.info("");
-        log.info("  relativeDir: {}", relProjectDir);
-        log.info("  absoluteDir: {}", absProjectDir);
-        log.info("  containerPrefix: {}", containerPrefix);
-        log.info("  executeId: {}", executeId);
-        log.info("  targets:");
+        log.info(fixedWidthCenter("Buildx Starting", 100, '='));
+        log.info("relativeDir: {}", relProjectDir);
+        log.info("absoluteDir: {}", absProjectDir);
+        log.info("containerPrefix: {}", containerPrefix);
+        log.info("executeId: {}", executeId);
+        log.info("jobExecutor: {}", jobExecutor.getClass().getSimpleName());
+        log.info("targets:");
         for (Target target : filteredTargets) {
-            log.info("    {}", target);
+            log.info(" -> {}", target);
         }
 
-        // we'll keep track of how long things took
-        //final Map<Target,Result> results = new HashMap<>();
         final List<BuildxJob> jobs = new ArrayList<>();
-        final AtomicInteger jobCounter = new AtomicInteger(0);
+        final AtomicInteger jobIdGenerator = new AtomicInteger(0);
 
         for (Target target : filteredTargets) {
-            final long startMillis = System.currentTimeMillis();
-            final int jobId = jobCounter.getAndIncrement();
-            final Result result = new Result(startMillis);
+            final int jobId = jobIdGenerator.getAndIncrement();
             final boolean container = target.getContainerImage() != null;
             final LogicalProject project;
             final SshSession sshSession;
-            Path outputFile = null;
-            //OutputStream outputRedirect = null;
+            final String remoteProjectDir;
+            final HostInfo hostInfo;
+            final Path outputFile;
+            final PrintStream outputRedirect;
 
-            if (this.parallel) {
-                outputFile = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + ".log");
-                outputFile = absProjectDir.relativize(outputFile);
+            // for parallel builds we need to redirect STDOUT/STDERR to a file
+            {
+                Path f = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + ".log");
+                outputFile = absProjectDir.relativize(f);
                 Files.createDirectories(outputFile.getParent());
-                /*outputRedirect = new CloseGuardedOutputStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
-                String s = "Target " + target + "\n\n";
-                outputRedirect.write(s.getBytes());
-                outputRedirect.flush();*/
+
+                if (this.parallel) {
+                    outputRedirect = new PrintStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
+                } else {
+                    // both stdout AND a copy in a logfile
+                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)));
+                }
+
+                // write something to that file so we know it exists
+                outputRedirect.println("Log file for job #" + jobId);
+                outputRedirect.flush();
             }
 
-            log.info("");
-            log.info(fixedWidthCentered("Executing " + target, '=', 100));
-            log.info("");
-            logTarget(target);
+            log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
+            log.info("target: {}", target);
             log.info("jobId: {}", jobId);
-            if (outputFile != null) {
-                log.info("outputRedirect: {}", outputFile);
+            log.info("outputFile: {}", ofNullable(outputFile).map(Path::toString).orElse("<stdout>"));
+            log.info("host: {}", ofNullable(target.getHost()).orElse("<local>"));
+            log.info("containerImage: {}", ofNullable(target.getContainerImage()).orElse("<none>"));
+            log.info("tags: {}", ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
+            if (target.getData() != null) {
+                log.info("data:");
+                target.getData().forEach((k,v) -> {
+                    log.info("  {}={}", k, v);
+                });
             }
-            log.info("");
 
             if (target.getHost() != null) {
                 sshSession = sshConnect("ssh://" + target.getHost()).run();
 
-                // NOTE: hopefully when we login to ssh, we are in the user's home directory
-                String pathSeparator = "/";
-                String remoteProjectDir = "remote-build/" + absProjectDir.getFileName().toString();
-                log.info("  remoteProjectDir: {}", remoteProjectDir);
+                // we need to detect some info about the host
+                hostInfo = HostInfo.probeRemote(sshSession);
 
-                log.info("Connected with...");
+                // build the location to the remote project directory
+                remoteProjectDir = hostInfo.getPwd() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
 
-                if (!target.isWindows()) {
-                    String pwd = sshExec(sshSession, "pwd")
-                        .runCaptureOutput()
-                        .toString()
-                        .trim();
-                    log.info("Detected remote pwd {}",  pwd);
-                    sshExec(sshSession, "uname", "-a").run();
-                    remoteProjectDir = pwd + "/" + remoteProjectDir;
-                } else {
-                    pathSeparator = "\\";
-                }
+                log.info("Remote project dir {}", remoteProjectDir);
 
-                log.info("Will make sure remote host has project dir {}", remoteProjectDir);
+                // we may need to make the path to the remote project dir exists before we can rsync it
+                sshExec(sshSession, "mkdir", "remote-build")
+                    .exitValues(0, 1)
+                    .pipeOutput(nullOutput())
+                    .pipeErrorToOutput()
+                    .run();
+                sshExec(sshSession, "mkdir", "remote-build"+hostInfo.getFileSeparator()+absProjectDir.getFileName())
+                    .exitValues(0, 1)
+                    .pipeOutput(nullOutput())
+                    .pipeErrorToOutput()
+                    .run();
 
-                if (target.isWindows()) {
-                    // we can ignore this, since rsync will catch it below if the dir wasn't created
-                    // this can happen on windows where mkdir does not like an existing dir
-                    sshExec(sshSession, "mkdir", "remote-build").exitValues(0, 1).run();
-                    sshExec(sshSession, "mkdir", this.adjustPath(remoteProjectDir, pathSeparator)).exitValues(0, 1).run();
-                } else {
-                    sshExec(sshSession, "mkdir", "-p", remoteProjectDir).run();
-                }
-
-                log.info("Will rsync current project to remote host...");
+                log.info("Rsync project to remote host...");
 
                 // sync our project directory to the remote host
                 String sshHost = target.getHost();
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                Exec exec = exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteProjectDir+"/");
-                if (outputFile != null) {
-                    exec.pipeOutput(fileAppendingOutput(outputFile));
+                String remoteRsyncProjectdir = remoteProjectDir;
+                if (hostInfo.getOperatingSystem() == OperatingSystem.WINDOWS) {
+                    // we will assume windows is using "cygwin style" paths
+                    remoteRsyncProjectdir = remoteRsyncProjectdir.replace("\\", "/").replace("C:/", "/cygdrive/c/");
+                }
+
+                Exec exec = exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteRsyncProjectdir+"/");
+                if (outputRedirect != null) {
+                    exec.pipeOutput(new CloseGuardedOutputStream(outputRedirect));
                     exec.pipeErrorToOutput();
                 }
                 exec.run();
 
-                project = new LogicalProject(outputFile, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir, container, sshSession, pathSeparator);
             } else {
                 sshSession = null;
-
-                project = new LogicalProject(outputFile, target, containerPrefix, absProjectDir, relProjectDir, null, container, null, File.pathSeparator);
+                remoteProjectDir = null;
+                hostInfo = HostInfo.probeLocal();
             }
 
-            //
-            // if we're using containers do we use podman or docker?
-            //
-            String containerExe = null;
-            if (container) {
-                log.info("Detecting which container runtime to use...");
-
-                try {
-                    // is there podman?
-                    project.exec("podman", "-v")
-                        .pipeOutput(Streamables.nullOutput())
-                        .pipeError(Streamables.nullOutput())
-                        .exitValue(0)
-                        .run();
-                    containerExe = "podman";
-                } catch (ExecutableNotFoundException e) {
-                    // podman was not found, move on
-                }
-
-                if (containerExe == null) {
-                    // is there docker?
-                    try {
-                        project.exec("docker", "-v")
-                            .pipeOutput(Streamables.nullOutput())
-                            .pipeError(Streamables.nullOutput())
-                            .exitValue(0)
-                            .run();
-                        containerExe = "docker";
-                    } catch (ExecutableNotFoundException e) {
-                        // docker was not found, move on
-                    }
-                }
-
-                if (containerExe == null) {
-                    throw new BlazeException("Unable to determine container runtime (neither podman or docker appears to be installed or available on PATH)");
-                }
-
-                log.info("Using container runtime: {}", containerExe);
-
-                project.setContainerExe(containerExe);
-            }
+            // we have all the info now we need to build the "local project" we are working with
+            project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir,
+                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo.getOperatingSystem(), hostInfo.getArch());
 
             // we are now ready to create a buildx job to run it
-            jobs.add(new BuildxJob(jobId, projectExecute, target, project, sshSession));
+            jobs.add(new BuildxJob(jobId, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
         }
 
-        if (this.parallel) {
-            // start the jobs....
-            final ExecutorService executor = Executors.newFixedThreadPool(jobs.size());
-            try {
-                for (BuildxJob job : jobs) {
-                    executor.submit(job);
-                }
+        // execute all the jobs
+        log.info(fixedWidthCenter("Executing Jobs", 100, '='));
 
-                // wait for all jobs to finish
-                JOB_WAIT_LOOP:
-                while (true) {
-                    Thread.sleep(1000);
-                    for (BuildxJob job : jobs) {
-                        if (job.getStatus() != BuildxJobStatus.COMPLETED) {
-                            log.debug("Job {} is still {}", job.getId(), job.getStatus());
-                            continue JOB_WAIT_LOOP;
-                        }
-                    }
-                    break JOB_WAIT_LOOP;
-                }
-            } finally {
-                executor.shutdown();
-            }
-        } else {
-            for (BuildxJob job : jobs) {
-                job.run();
-            }
-        }
+        jobExecutor.execute(jobs);
 
+        // write out the results
         if (this.resultsFile != null) {
-            // get the current git hash: git log -1 --format=%H
-            final CaptureOutput captureOutput = Streamables.captureOutput(false);
-            exec("git", "log", "-1", "--format=%H")
-                .pipeError(Streamables.nullOutput())
-                .pipeOutput(captureOutput)
-                .run();
-            final String gitCommitHash = captureOutput.toString().trim();
-
-            final StringBuilder sb = new StringBuilder();
-            sb.append("Buildx Results\r\n");
-            sb.append("--------------\r\n");
-            sb.append("Cross platform tests use the Buildx project: https://github.com/fizzed/buildx\r\n");
-            sb.append("Commit: ").append(gitCommitHash).append("\r\n");
-            sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\r\n");
-            sb.append("\r\n");
-            for (BuildxJob job : jobs) {
-                final Target target = job.getTarget();
-                final Result result = job.getResult();
-                final String name = ofNullable(target.getOsArch()).orElse("");
-                final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
-                String appendMessage = result.getStatus().name().toLowerCase();
-                if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
-                    appendMessage += ": " + result.getMessage();
-                }
-                sb.append(fixedWidthLeft(name, ' ', 16)).append(fixedWidthLeft(description, ' ', 50)).append(appendMessage).append("\r\n");
-            }
-            sb.append("\r\n");
-
-            Files.write(resultsFile, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            BuildxReportRenderer.writeResults(jobs, this.resultsFile);
         }
 
-        log.info("");
-        log.info(fixedWidthCentered("Buildx Results", '=', 100));
-        log.info("");
-        for (BuildxJob job : jobs) {
-            final Target target = job.getTarget();
-            final Result result = job.getResult();
-            final long durationMillis = result.getEndMillis() - result.getStartMillis();
-            final double durationSecs = (double)durationMillis/1000d;
-
-            String appendMessage = "";
-            if (result.getStatus() != ExecuteStatus.SUCCESS) {
-                appendMessage = " (" + result.getStatus().name().toLowerCase() + ": " + result.getMessage() + ")";
-            }
-
-            final String name = ofNullable(target.getOsArch()).orElse("");
-            final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
-            final String tags = ofNullable(target.getTags().toString()).orElse("");
-
-            log.info("{} {} {}{} s{}",
-                fixedWidthLeft(name, ' ', 16),
-                fixedWidthLeft(description, ' ', 50),
-                fixedWidthLeft(tags + " ", '.', 20),
-                fixedWidthRight(" " + SECS_FMT.format(durationSecs), '.', 10),
-                appendMessage);
-        }
-        log.info("");
-        log.info(fixedWidthCentered("Buildx Done", '=', 100));
+        BuildxReportRenderer.logResults(log, jobs);
     }
 
     static public void createBuildxDirectory(Path projectDir) throws IOException {
@@ -417,67 +301,6 @@ public class Buildx {
                 Files.copy(input, file, StandardCopyOption.REPLACE_EXISTING);
                 file.toFile().setExecutable(true);
             }
-        }
-    }
-
-    static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");
-
-    static private  String adjustPath(String path, String pathSeparator) {
-        return path.replace("/", pathSeparator);
-    }
-
-    static private String ifEmpty(String v, String empty) {
-        if (v == null || v.length() == 0) {
-            return empty;
-        }
-        return v;
-    }
-
-    static private String fixedWidthCentered(String title, char padChar, int len) {
-        int totalPad = len - 2 - title.length();
-        int leftPad = totalPad / 2;
-        int rightPad = totalPad - leftPad;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < leftPad; i++) {
-            sb.append(padChar);
-        }
-        sb.append(" ");
-        sb.append(title);
-        sb.append(" ");
-        for (int i = 0; i < rightPad; i++) {
-            sb.append(padChar);
-        }
-        return sb.toString();
-    }
-
-    static private String fixedWidthLeft(String v, char padChar, int len) {
-        if (v.length() > len) {
-            return v.substring(0, len);
-        } else if (v.length() == len) {
-            return v;
-        } else {
-            StringBuilder sb = new StringBuilder();
-            sb.append(v);
-            for (int i = v.length(); i < len; i++) {
-                sb.append(padChar);
-            }
-            return sb.toString();
-        }
-    }
-
-    static private String fixedWidthRight(String v, char padChar, int len) {
-        if (v.length() > len) {
-            return v.substring(0, len);
-        } else if (v.length() == len) {
-            return v;
-        } else {
-            StringBuilder sb = new StringBuilder();
-            int padLen = len - v.length();
-            for (int i = 0; i < padLen; i++) {
-                sb.append(padChar);
-            }
-            sb.append(v);
-            return sb.toString();
         }
     }
 
