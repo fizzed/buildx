@@ -2,9 +2,7 @@ package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
-import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.blaze.util.Streamables;
 import com.fizzed.jne.OperatingSystem;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
@@ -48,7 +46,7 @@ public class Buildx {
         } catch (IOException e) {
          throw new UncheckedIOException(e);
         }
-        this.resultsFile = this.absProjectDir.resolve("buildx-results.txt");
+        this.resultsFile = null;        // disabled by default
         this.containerPrefix = absProjectDir.getFileName().toString();
         this.parallel = false;
     }
@@ -268,7 +266,7 @@ public class Buildx {
                 container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo.getOperatingSystem(), hostInfo.getArch());
 
             // we are now ready to create a buildx job to run it
-            jobs.add(new BuildxJob(jobId, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
+            jobs.add(new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
         }
 
         // execute all the jobs

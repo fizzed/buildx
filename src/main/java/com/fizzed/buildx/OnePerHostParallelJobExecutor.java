@@ -55,6 +55,7 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
         log.info("Executing {} jobs on {} hosts with {} execution strategy", jobs.size(), jobsPerHost.size(), this.getClass().getSimpleName());
 
         final Timer timer = new Timer();
+        final AsciiSpinner spinner = new AsciiSpinner();
 
         final ExecutorService executor = Executors.newFixedThreadPool(jobsPerHost.size());
         try {
@@ -73,8 +74,9 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
 
             while (completedJobs < totalJobs) {
                 // progress looks nicer with random amount of elapsed time
-                long randomSleep = java.util.concurrent.ThreadLocalRandom.current().nextLong(500, 1201);
-                Thread.sleep(randomSleep);
+//                long randomSleep = java.util.concurrent.ThreadLocalRandom.current().nextLong(500, 1201);
+//                Thread.sleep(randomSleep);
+                Thread.sleep(200);      // predictable is better for spinner rendering
 
                 // re-calculate totals
                 completedJobs = 0;
@@ -99,7 +101,9 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                     }
                 }
 
-                System.out.println(cursorUpCode(1 + lastFailedMessageLines) + clearLineCode() + "  completed " + completedJobs + " / " + totalJobs + " jobs " +
+                System.out.println(
+                    cursorUpCode(1 + lastFailedMessageLines) + clearLineCode() +
+                    "  [" + spinner.next() + "] completed " + completedJobs + " / " + totalJobs + " jobs " +
                     "[" + (runningJobs > 0 ? cyanCode() : "") + "running: " + runningJobs + resetCode() + ", " +
                     (pendingJobs > 0 ? magentaCode() : "") + "pending: " + pendingJobs + resetCode() + ", "
                     + (successJobs > 0 ? greenCode() : "") + "success=" + successJobs + resetCode()

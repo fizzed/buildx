@@ -18,6 +18,7 @@ public class BuildxJob implements Runnable {
     private final AtomicReference<BuildxJobStatus> statusRef;
     private Result result;
     private final int id;
+    private final HostInfo hostInfo;
     private final ProjectExecute projectExecute;
     private final Target target;
     private final LogicalProject project;
@@ -26,8 +27,9 @@ public class BuildxJob implements Runnable {
     private final Path outputFile;
     private final PrintStream outputRedirect;
 
-    public BuildxJob(int id, ProjectExecute projectExecute, Target target, LogicalProject project, SshSession sshSession, boolean parallel, Path outputFile, PrintStream outputRedirect) {
+    public BuildxJob(int id, HostInfo hostInfo, ProjectExecute projectExecute, Target target, LogicalProject project, SshSession sshSession, boolean parallel, Path outputFile, PrintStream outputRedirect) {
         this.id = id;
+        this.hostInfo = hostInfo;
         this.statusRef = new AtomicReference<>(BuildxJobStatus.PENDING);
         this.result = null;
         this.projectExecute = projectExecute;
@@ -41,6 +43,10 @@ public class BuildxJob implements Runnable {
 
     public int getId() {
         return this.id;
+    }
+
+    public HostInfo getHostInfo() {
+        return hostInfo;
     }
 
     public Result getResult() {

@@ -44,15 +44,40 @@ public class BuildxReportRenderer {
         for (BuildxJob job : jobs) {
             final Target target = job.getTarget();
             final Result result = job.getResult();
-            final String name = ofNullable(target.getName()).orElse("");
-            final String description = ofNullable(target.getDescription()).map(v -> "(" + v + ")").orElse("");
             String appendMessage = result.getStatus().name().toLowerCase();
             if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
                 appendMessage += ": " + result.getMessage();
             }
-            sb.append(fixedWidthLeft(name + " " + description, 75)).append(appendMessage).append("\r\n");
+            sb.append(fixedWidthLeft(target.toString(), 75, '.')).append(' ').append(appendMessage).append("\r\n");
         }
         sb.append("\r\n");
+
+        // detailed info about each target
+        sb.append("Details =>\r\n");
+        sb.append("\r\n");
+
+        for (BuildxJob job : jobs) {
+            sb.append(job.getTarget()).append("\r\n");
+            sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\r\n");
+            sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\r\n");
+            if (job.getTarget().getContainerImage() != null) {
+                sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\r\n");
+            }
+            if (job.getTarget().getData() != null) {
+                sb.append("  data:\r\n");
+                job.getTarget().getData().forEach((k,v) -> {
+                    sb.append("    ").append(k).append(": ").append(v).append("\r\n");
+                });
+            }
+            sb.append("  host:\r\n");
+            sb.append("    name: ").append(job.getTarget().getHost()).append("\r\n");
+            sb.append("    os: ").append(job.getHostInfo().getOperatingSystem()).append("\r\n");
+            sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\r\n");
+            sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\r\n");
+
+            sb.append("\r\n");
+        }
+
         sb.append(fixedWidthLeft("", 100, '=')).append("\r\n");
 
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
