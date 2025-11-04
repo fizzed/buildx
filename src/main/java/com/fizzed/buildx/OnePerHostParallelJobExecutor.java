@@ -76,7 +76,7 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                 // progress looks nicer with random amount of elapsed time
 //                long randomSleep = java.util.concurrent.ThreadLocalRandom.current().nextLong(500, 1201);
 //                Thread.sleep(randomSleep);
-                Thread.sleep(200);      // predictable is better for spinner rendering
+                Thread.sleep(1000);      // predictable is better for spinner rendering
 
                 // re-calculate totals
                 completedJobs = 0;
