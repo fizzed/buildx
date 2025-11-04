@@ -253,13 +253,10 @@ public class Buildx {
                     remoteRsyncProjectdir = remoteRsyncProjectdir.replace("\\", "/").replace("C:/", "/cygdrive/c/");
                 }
 
-                Exec exec = exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteRsyncProjectdir+"/");
-                if (outputRedirect != null) {
-                    exec.pipeOutput(new CloseGuardedOutputStream(outputRedirect));
-                    exec.pipeErrorToOutput();
-                }
-                exec.run();
-
+                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteRsyncProjectdir+"/")
+                    .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
+                    .pipeErrorToOutput()
+                    .run();
             } else {
                 sshSession = null;
                 remoteProjectDir = null;

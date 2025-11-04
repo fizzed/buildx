@@ -210,12 +210,8 @@ public class LogicalProject {
                 .workingDir(this.absoluteDir);
         }
 
-        // do we need to route the output to a file?
-        if (this.outputRedirect != null) {
-            // NOTE: we must protect against the stream getting closed
-            exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect));
-            exec.pipeErrorToOutput();
-        }
+        exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect));          // protect against being closed by Exec
+        exec.pipeErrorToOutput();
 
         return exec;
     }
@@ -241,16 +237,9 @@ public class LogicalProject {
         log.debug("Rsyncing {} -> {}", src, dest);
 
         // -a or -t flags can sometimes cause unexpected file permissions issues
-        Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
-
-        // do we need to route the output to a file?
-        if (this.outputRedirect != null) {
-            // NOTE: we must protect against the stream getting closed
-            exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect));
-            exec.pipeErrorToOutput();
-        }
-
-        return exec;
+        return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest)
+            .pipeOutput(new CloseGuardedOutputStream(this.outputRedirect))          // protect against being closed by Exec
+            .pipeErrorToOutput();
     }
 
     public void buildContainer() {
@@ -278,7 +267,7 @@ public class LogicalProject {
             this.exec("cp", "")
         }*/
 
-        Path dockerFile = ofNullable(containerBuilder).map(v -> v.getDockerFile()).orElse(null);
+        Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);
         if (dockerFile == null) {
             dockerFile = Paths.get(".buildx/Dockerfile.linux");
             if (target.getContainerImage().contains("alpine")) {
@@ -286,12 +275,12 @@ public class LogicalProject {
             }
         }
 
-        Path installScript = ofNullable(containerBuilder).map(v -> v.getInstallScript()).orElse(null);
+        Path installScript = ofNullable(containerBuilder).map(ContainerBuilder::getInstallScript).orElse(null);
         if (installScript == null) {
             installScript = Paths.get(".buildx/noop-install.sh");
         }
 
-        boolean cache = ofNullable(containerBuilder).map(v -> v.getCache()).orElse(true);
+        boolean cache = ofNullable(containerBuilder).map(ContainerBuilder::getCache).orElse(true);
 
         Exec exec = this.hostExec(this.containerExe, "build", "-f", dockerFile);
 
