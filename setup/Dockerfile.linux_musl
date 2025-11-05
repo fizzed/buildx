@@ -8,10 +8,13 @@ ARG JAVA_ARCH
 RUN apk add git curl wget gzip rsync libstdc++ libatomic
 
 # Install jdk w/ a specific version
-RUN curl -sfL https://cdn.fizzed.com/provisioning/install-java.sh | sh -s -- --version=${JAVA_VERSION} --arch=${JAVA_ARCH}
+RUN curl -sfL https://cdn.fizzed.com/fzpkg/install-java.sh | sh -s -- --version=${JAVA_VERSION} --arch=${JAVA_ARCH}
 
 # Install maven first since that'll be consistent across images
-RUN curl -sfL https://cdn.fizzed.com/provisioning/install-maven.sh | sh -s -- --skip-elevated-check
+RUN curl -sfL https://cdn.fizzed.com/fzpkg/install-maven.sh | sh
+
+# Install blaze wrapper script so its available
+RUN curl -sfL https://cdn.fizzed.com/fzpkg/install-blaze.sh | sh
 
 # Cleanup files we don't want in final image
 RUN rm -Rf ~/.ivy2
@@ -23,8 +26,3 @@ ENV M2_HOME="/opt/maven"
 ENV PATH="${JAVA_HOME}/bin:${M2_HOME}/bin:${PATH}"
 # this fixes the "spawn" error in latest java version
 ENV JDK_JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"
-
-# Install blaze
-RUN curl -o blaze.jar 'https://repo1.maven.org/maven2/com/fizzed/blaze-lite/2.1.2/blaze-lite-2.1.2.jar'
-RUN java -jar blaze.jar -i /usr/local/bin
-RUN rm blaze.jar
