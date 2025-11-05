@@ -71,7 +71,7 @@ public class BuildxReportRenderer {
             }
             sb.append("  host:\r\n");
             sb.append("    name: ").append(job.getTarget().getHost()).append("\r\n");
-            sb.append("    os: ").append(job.getHostInfo().getOperatingSystem()).append("\r\n");
+            sb.append("    os: ").append(job.getHostInfo().getOs()).append("\r\n");
             sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\r\n");
             sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\r\n");
 

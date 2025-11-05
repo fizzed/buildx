@@ -5,7 +5,6 @@ import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.jne.HardwareArchitecture;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
@@ -29,11 +28,10 @@ public class LogicalProject {
     private final SshSession sshSession;
     private final String fileSeparator;
     private final String containerExe;
-    private final OperatingSystem hostOs;
-    private final HardwareArchitecture hostArch;
+    private final HostInfo hostInfo;
 
     public LogicalProject(PrintStream outputRedirect, Target target, String containerPrefix, Path absoluteDir, Path relativeDir, String remoteDir,
-                          boolean container, SshSession sshSession, String containerExe, String fileSeparator, OperatingSystem hostOs, HardwareArchitecture hostArch) {
+                          boolean container, SshSession sshSession, String containerExe, String fileSeparator, HostInfo hostInfo) {
         this.outputRedirect = outputRedirect;
         this.target = target;
         this.containerPrefix = containerPrefix;
@@ -44,8 +42,7 @@ public class LogicalProject {
         this.sshSession = sshSession;
         this.fileSeparator = fileSeparator;
         this.containerExe = containerExe;
-        this.hostOs = hostOs;
-        this.hostArch = hostArch;
+        this.hostInfo = hostInfo;
     }
 
     public String getContainerName() {
@@ -84,12 +81,8 @@ public class LogicalProject {
         return containerExe;
     }
 
-    public OperatingSystem getHostOs() {
-        return hostOs;
-    }
-
-    public HardwareArchitecture getHostArch() {
-        return hostArch;
+    public HostInfo getHostInfo() {
+        return hostInfo;
     }
 
     public PrintStream out() {
@@ -123,21 +116,8 @@ public class LogicalProject {
         return remotePath;
     }
 
-    /*public String actionPath(String path) {
-        // is in container?
-        if (this.container) {
-            return "/project/" + path;
-        } else if (this.sshSession != null) {
-            // a remote path then
-            return this.remotePath(path);
-        } else {
-            // otherwise, local host path
-            return this.relativePath(path);
-        }
-    }*/
-
     private String sshShellExecScript() {
-        if (this.hostOs == OperatingSystem.WINDOWS) {
+        if (this.hostInfo.getOs() == OperatingSystem.WINDOWS) {
             return this.remotePath(".buildx/exec.bat");
         } else {
             return this.remotePath(".buildx/exec.sh");
@@ -148,21 +128,6 @@ public class LogicalProject {
      * Executes a command ON the logical project such as in a container.
      */
     public Exec exec(String exeOrNameOfExe, Object... arguments) {
-
-        /*// run every command in our wrapper script
-        final String actionScript = this.target.isWindows() ? this.actionPath(".buildx/exec.bat") : this.actionPath(".buildx/exec.sh");
-        // rebuild arguments now
-        final Object[] newArguments = new Object[arguments.length+1];
-        newArguments[0] = path;
-        int i = 1;
-        for (Object a : arguments) {
-            newArguments[i] = a;
-            i++;
-        }
-        arguments = newArguments;*/
-
-        //final String actionScript = path;
-
         // is remote?
         if (this.sshSession != null) {
             if (this.container) {
@@ -230,7 +195,7 @@ public class LogicalProject {
         }
 
         // on windows, we need to fix path to match how "cygwin" does it
-        if (this.hostOs == OperatingSystem.WINDOWS) {
+        if (this.hostInfo.getOs() == OperatingSystem.WINDOWS) {
             src = src.replace("C:\\", "/cygdrive/c/");
         }
 
@@ -262,9 +227,12 @@ public class LogicalProject {
         this.hostExec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
-        // TODO: copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
         /*if (!containerBuilder.isSkipMavenSettingsCopy()) {
-            this.exec("cp", "")
+            // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
+            this.hostExec("cp", "-f", "~/.m2/settings.xml", ".buildx-cache/m2")
+            *//*if (!containerBuilder.isSkipMavenSettingsCopy()) {
+                this.exec("cp", "")
+            }*//*
         }*/
 
         Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);

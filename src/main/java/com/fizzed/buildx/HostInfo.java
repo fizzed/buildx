@@ -25,16 +25,18 @@ public class HostInfo {
     private final String uname;
     private final OperatingSystem os;
     private final HardwareArchitecture arch;
-    private final String pwd;
+    private final String currentDir;
+    private final String homeDir;
     private final String fileSeparator;
     private final String podmanVersion;
     private final String dockerVersion;
 
-    public HostInfo(String uname, OperatingSystem os, HardwareArchitecture arch, String pwd, String fileSeparator, String podmanVersion, String dockerVersion) {
+    public HostInfo(String uname, OperatingSystem os, HardwareArchitecture arch, String currentDir, String homeDir, String fileSeparator, String podmanVersion, String dockerVersion) {
         this.uname = uname;
         this.os = os;
         this.arch = arch;
-        this.pwd = pwd;
+        this.currentDir = currentDir;
+        this.homeDir = homeDir;
         this.fileSeparator = fileSeparator;
         this.podmanVersion = podmanVersion;
         this.dockerVersion = dockerVersion;
@@ -44,7 +46,7 @@ public class HostInfo {
         return uname;
     }
 
-    public OperatingSystem getOperatingSystem() {
+    public OperatingSystem getOs() {
         return os;
     }
 
@@ -52,8 +54,12 @@ public class HostInfo {
         return arch;
     }
 
-    public String getPwd() {
-        return pwd;
+    public String getCurrentDir() {
+        return currentDir;
+    }
+
+    public String getHomeDir() {
+        return homeDir;
     }
 
     public String getFileSeparator() {
@@ -83,19 +89,21 @@ public class HostInfo {
         NativeTarget nativeTarget = NativeTarget.detect();
         String uname = uname(localSession);
         String fileSeparator = File.separator;
-        String pwd = Paths.get(".").toAbsolutePath().normalize().toString();
+        String currentDir = Paths.get(".").toAbsolutePath().normalize().toString();
+        String homeDir = System.getProperty("user.home");
         String podmanVersion = podmanVersion(localSession);
         String dockerVersion = dockerVersion(localSession);
-        return new HostInfo(uname, nativeTarget.getOperatingSystem(), nativeTarget.getHardwareArchitecture(), pwd, fileSeparator, podmanVersion, dockerVersion);
+        return new HostInfo(uname, nativeTarget.getOperatingSystem(), nativeTarget.getHardwareArchitecture(), currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
     }
 
     static public HostInfo probeRemote(SshSession sshSession) {
-        String pwd = null;
+        String currentDir = null;
         String fileSeperator = null;
         final String uname = uname(sshSession);
         final NativeTarget nativeTarget = NativeTarget.detectFromText(uname);
         final OperatingSystem os = nativeTarget.getOperatingSystem();
         final HardwareArchitecture arch = nativeTarget.getHardwareArchitecture();
+        String homeDir = null;
 
         // detect the current path & file separator
         if (os == OperatingSystem.WINDOWS) {
@@ -107,7 +115,7 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            pwd = cdOutput.toString().trim();
+            currentDir = cdOutput.toString().trim();
         } else {
             fileSeperator = "/";
 
@@ -117,13 +125,33 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            pwd = pwdOutput.toString().trim();
+            currentDir = pwdOutput.toString().trim();
+        }
+
+        // detect the home directory
+        if (os == OperatingSystem.WINDOWS) {
+            CaptureOutput homeOutput = Streamables.captureOutput(true);
+            sshExec(sshSession, "echo", "%USERPROFILE%")
+                .pipeOutput(homeOutput)
+                .pipeErrorToOutput()
+                .run();
+
+            homeDir = homeOutput.toString().trim();
+        } else {
+            // detect home directory on linux, macos, etc.
+            CaptureOutput homeOutput = Streamables.captureOutput(false);
+            sshExec(sshSession, "sh", "-c", "cd ~ && pwd")
+                .pipeOutput(homeOutput)
+                .pipeErrorToOutput()
+                .run();
+
+            homeDir = homeOutput.toString().trim();
         }
 
         String podmanVersion = podmanVersion(sshSession);
         String dockerVersion = dockerVersion(sshSession);
 
-        return new HostInfo(uname, os, arch, pwd, fileSeperator, podmanVersion, dockerVersion);
+        return new HostInfo(uname, os, arch, currentDir, homeDir, fileSeperator, podmanVersion, dockerVersion);
     }
 
     static private String podmanVersion(ExecSession execSession) {

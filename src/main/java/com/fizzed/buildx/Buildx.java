@@ -223,7 +223,7 @@ public class Buildx {
                 hostInfo = HostInfo.probeRemote(sshSession);
 
                 // build the location to the remote project directory
-                remoteProjectDir = hostInfo.getPwd() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+                remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
 
                 log.info("Remote project dir {}", remoteProjectDir);
 
@@ -246,7 +246,7 @@ public class Buildx {
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
                 String remoteRsyncProjectdir = remoteProjectDir;
-                if (hostInfo.getOperatingSystem() == OperatingSystem.WINDOWS) {
+                if (hostInfo.getOs() == OperatingSystem.WINDOWS) {
                     // we will assume windows is using "cygwin style" paths
                     remoteRsyncProjectdir = remoteRsyncProjectdir.replace("\\", "/").replace("C:/", "/cygdrive/c/");
                 }
@@ -263,7 +263,7 @@ public class Buildx {
 
             // we have all the info now we need to build the "local project" we are working with
             project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir,
-                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo.getOperatingSystem(), hostInfo.getArch());
+                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo);
 
             // we are now ready to create a buildx job to run it
             jobs.add(new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
