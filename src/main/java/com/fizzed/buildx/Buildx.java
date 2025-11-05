@@ -35,6 +35,7 @@ public class Buildx {
     protected final List<Predicate<Target>> filters;
     protected boolean parallel;
     protected boolean autoBuildContainers;
+    protected ContainerBuilder containerBuilder;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
@@ -51,6 +52,7 @@ public class Buildx {
         this.containerPrefix = absProjectDir.getFileName().toString();
         this.parallel = false;
         this.autoBuildContainers = true;
+        this.containerBuilder = null;
     }
 
     public List<Target> getTargets() {
@@ -101,6 +103,11 @@ public class Buildx {
 
     public Buildx autoBuildContainers(boolean autoBuildContainers) {
         this.autoBuildContainers = autoBuildContainers;
+        return this;
+    }
+
+    public Buildx containerBuilder(ContainerBuilder containerBuilder) {
+        this.containerBuilder = containerBuilder;
         return this;
     }
 
@@ -280,7 +287,8 @@ public class Buildx {
 
             // if we are running a container, we need to build it too
             if (container && this.autoBuildContainers) {
-                project.buildContainer();
+                // build the container image using the supplied (or null/default)
+                project.buildContainer(this.containerBuilder);
             }
 
             // we are now ready to create a buildx job to run it

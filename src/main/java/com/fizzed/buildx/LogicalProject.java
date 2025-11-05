@@ -236,9 +236,10 @@ public class LogicalProject {
             .run();
 
         if (!containerBuilder.isSkipMavenSettingsCopy()) {
-            // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
+            // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs (if it exists)
             log.info("Copying <containerHost>/~/.m2/settings.xml to .buildx-cache on container host...");
             this.hostExec("cp", "-f", this.hostInfo.getHomeDir() + "/.m2/settings.xml", ".buildx-cache/m2/settings.xml")
+                .exitValues(0, 1)       // 1 seems to occur if the file doesn't exist'
                 .run();
         }
 
