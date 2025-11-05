@@ -34,6 +34,8 @@ public class Buildx {
     protected Set<String> tags;
     protected final List<Predicate<Target>> filters;
     protected boolean parallel;
+    protected boolean autoBuildContainers;
+    protected ContainerBuilder containerBuilder;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
@@ -49,6 +51,8 @@ public class Buildx {
         this.resultsFile = null;        // disabled by default
         this.containerPrefix = absProjectDir.getFileName().toString();
         this.parallel = false;
+        this.autoBuildContainers = true;
+        this.containerBuilder = null;
     }
 
     public List<Target> getTargets() {
@@ -94,6 +98,16 @@ public class Buildx {
 
     public Buildx parallel(boolean parallel) {
         this.parallel = parallel;
+        return this;
+    }
+
+    public Buildx autoBuildContainers(boolean autoBuildContainers) {
+        this.autoBuildContainers = autoBuildContainers;
+        return this;
+    }
+
+    public Buildx containerBuilder(ContainerBuilder containerBuilder) {
+        this.containerBuilder = containerBuilder;
         return this;
     }
 
@@ -171,6 +185,12 @@ public class Buildx {
             log.info(" -> {}", target);
         }
 
+        // are there any jobs?
+        if (filteredTargets.isEmpty()) {
+            log.error("No targets found, nothing to do");
+            return;
+        }
+
         final List<BuildxJob> jobs = new ArrayList<>();
         final AtomicInteger jobIdGenerator = new AtomicInteger(0);
 
@@ -223,7 +243,7 @@ public class Buildx {
                 hostInfo = HostInfo.probeRemote(sshSession);
 
                 // build the location to the remote project directory
-                remoteProjectDir = hostInfo.getPwd() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+                remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
 
                 log.info("Remote project dir {}", remoteProjectDir);
 
@@ -246,7 +266,7 @@ public class Buildx {
 
                 // NOTE: rsync uses a unix-style path no matter which OS we're going to
                 String remoteRsyncProjectdir = remoteProjectDir;
-                if (hostInfo.getOperatingSystem() == OperatingSystem.WINDOWS) {
+                if (hostInfo.getOs() == OperatingSystem.WINDOWS) {
                     // we will assume windows is using "cygwin style" paths
                     remoteRsyncProjectdir = remoteRsyncProjectdir.replace("\\", "/").replace("C:/", "/cygdrive/c/");
                 }
@@ -263,7 +283,13 @@ public class Buildx {
 
             // we have all the info now we need to build the "local project" we are working with
             project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir,
-                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo.getOperatingSystem(), hostInfo.getArch());
+                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo);
+
+            // if we are running a container, we need to build it too
+            if (container && this.autoBuildContainers) {
+                // build the container image using the supplied (or null/default)
+                project.buildContainer(this.containerBuilder);
+            }
 
             // we are now ready to create a buildx job to run it
             jobs.add(new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
