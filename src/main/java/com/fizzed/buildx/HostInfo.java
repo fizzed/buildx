@@ -130,7 +130,7 @@ public class HostInfo {
 
         // detect the home directory
         if (os == OperatingSystem.WINDOWS) {
-            CaptureOutput homeOutput = Streamables.captureOutput(true);
+            CaptureOutput homeOutput = Streamables.captureOutput(false);
             sshExec(sshSession, "echo", "%USERPROFILE%")
                 .pipeOutput(homeOutput)
                 .pipeErrorToOutput()

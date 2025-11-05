@@ -208,32 +208,39 @@ public class LogicalProject {
     }
 
     public void buildContainer() {
-        this.buildContainer(null);
+        this.buildContainer(null);        // just use defaults
     }
 
     public void buildContainer(ContainerBuilder containerBuilder) {
+        if (containerBuilder == null) {
+            // use defaults
+            containerBuilder = new ContainerBuilder();
+        }
+
         // this command MUST be executed on the host we're building the container on
+        log.info("Detecting user on container host...");
         final String username = this.hostExec("whoami")
-            .runCaptureOutput()
+            .runCaptureOutput(false)
             .toString()
             .trim();
 
+        log.info("Detecting userId on container host...");
         final String userId = this.hostExec("id", "-u", username)
-            .runCaptureOutput()
+            .runCaptureOutput(false)
             .toString()
             .trim();
 
         // create build cache for m2 and ivy2
+        log.info("Creating .buildx-cache on container host...");
         this.hostExec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
             .run();
 
-        /*if (!containerBuilder.isSkipMavenSettingsCopy()) {
+        if (!containerBuilder.isSkipMavenSettingsCopy()) {
             // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs?
-            this.hostExec("cp", "-f", "~/.m2/settings.xml", ".buildx-cache/m2")
-            *//*if (!containerBuilder.isSkipMavenSettingsCopy()) {
-                this.exec("cp", "")
-            }*//*
-        }*/
+            log.info("Copying <containerHost>/~/.m2/settings.xml to .buildx-cache on container host...");
+            this.hostExec("cp", "-f", this.hostInfo.getHomeDir() + "/.m2/settings.xml", ".buildx-cache/m2/settings.xml")
+                .run();
+        }
 
         Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);
         if (dockerFile == null) {
@@ -250,6 +257,7 @@ public class LogicalProject {
 
         boolean cache = ofNullable(containerBuilder).map(ContainerBuilder::getCache).orElse(true);
 
+        log.info("Building container image {}...", this.getContainerName());
         Exec exec = this.hostExec(this.containerExe, "build", "-f", dockerFile);
 
         if (!cache) {

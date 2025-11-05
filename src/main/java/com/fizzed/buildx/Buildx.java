@@ -34,6 +34,7 @@ public class Buildx {
     protected Set<String> tags;
     protected final List<Predicate<Target>> filters;
     protected boolean parallel;
+    protected boolean autoBuildContainers;
 
     public Buildx(List<Target> targets) {
         this.targets = targets;
@@ -49,6 +50,7 @@ public class Buildx {
         this.resultsFile = null;        // disabled by default
         this.containerPrefix = absProjectDir.getFileName().toString();
         this.parallel = false;
+        this.autoBuildContainers = true;
     }
 
     public List<Target> getTargets() {
@@ -94,6 +96,11 @@ public class Buildx {
 
     public Buildx parallel(boolean parallel) {
         this.parallel = parallel;
+        return this;
+    }
+
+    public Buildx autoBuildContainers(boolean autoBuildContainers) {
+        this.autoBuildContainers = autoBuildContainers;
         return this;
     }
 
@@ -169,6 +176,12 @@ public class Buildx {
         log.info("targets:");
         for (Target target : filteredTargets) {
             log.info(" -> {}", target);
+        }
+
+        // are there any jobs?
+        if (filteredTargets.isEmpty()) {
+            log.error("No targets found, nothing to do");
+            return;
         }
 
         final List<BuildxJob> jobs = new ArrayList<>();
@@ -264,6 +277,11 @@ public class Buildx {
             // we have all the info now we need to build the "local project" we are working with
             project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir,
                 container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo);
+
+            // if we are running a container, we need to build it too
+            if (container && this.autoBuildContainers) {
+                project.buildContainer();
+            }
 
             // we are now ready to create a buildx job to run it
             jobs.add(new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));

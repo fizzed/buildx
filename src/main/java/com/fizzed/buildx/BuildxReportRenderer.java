@@ -33,14 +33,14 @@ public class BuildxReportRenderer {
         final String gitCommitHash = captureOutput.toString().trim();
 
         final StringBuilder sb = new StringBuilder();
-        sb.append("Buildx Results\r\n");
-        sb.append(fixedWidthLeft("", 100, '=')).append("\r\n");
-        sb.append("\r\n");
-        sb.append("Cross platform tests based on https://github.com/fizzed/buildx\r\n");
-        sb.append("\r\n");
-        sb.append("Commit: ").append(gitCommitHash).append("\r\n");
-        sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\r\n");
-        sb.append("\r\n");
+        sb.append("Buildx Results\n");
+        sb.append(fixedWidthLeft("", 100, '=')).append("\n");
+        sb.append("\n");
+        sb.append("Cross platform tests based on https://github.com/fizzed/buildx\n");
+        sb.append("\n");
+        sb.append("Commit: ").append(gitCommitHash).append("\n");
+        sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\n");
+        sb.append("\n");
         for (BuildxJob job : jobs) {
             final Target target = job.getTarget();
             final Result result = job.getResult();
@@ -48,37 +48,37 @@ public class BuildxReportRenderer {
             if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
                 appendMessage += ": " + result.getMessage();
             }
-            sb.append(fixedWidthLeft(target.toString(), 75, '.')).append(' ').append(appendMessage).append("\r\n");
+            sb.append(fixedWidthLeft(target.toString(), 75, '.')).append(' ').append(appendMessage).append("\n");
         }
-        sb.append("\r\n");
+        sb.append("\n");
 
         // detailed info about each target
-        sb.append("Details =>\r\n");
-        sb.append("\r\n");
+        sb.append("Details =>\n");
+        sb.append("\n");
 
         for (BuildxJob job : jobs) {
-            sb.append(job.getTarget()).append("\r\n");
-            sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\r\n");
-            sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\r\n");
+            sb.append(job.getTarget()).append("\n");
+            sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\n");
+            sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\n");
             if (job.getTarget().getContainerImage() != null) {
-                sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\r\n");
+                sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\n");
             }
             if (job.getTarget().getData() != null) {
-                sb.append("  data:\r\n");
+                sb.append("  data:\n");
                 job.getTarget().getData().forEach((k,v) -> {
-                    sb.append("    ").append(k).append(": ").append(v).append("\r\n");
+                    sb.append("    ").append(k).append(": ").append(v).append("\n");
                 });
             }
-            sb.append("  host:\r\n");
-            sb.append("    name: ").append(job.getTarget().getHost()).append("\r\n");
-            sb.append("    os: ").append(job.getHostInfo().getOs()).append("\r\n");
-            sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\r\n");
-            sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\r\n");
+            sb.append("  host:\n");
+            sb.append("    name: ").append(job.getTarget().getHost()).append("\n");
+            sb.append("    os: ").append(job.getHostInfo().getOs()).append("\n");
+            sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\n");
+            sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\n");
 
-            sb.append("\r\n");
+            sb.append("\n");
         }
 
-        sb.append(fixedWidthLeft("", 100, '=')).append("\r\n");
+        sb.append(fixedWidthLeft("", 100, '=')).append("\n");
 
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
@@ -112,7 +112,7 @@ public class BuildxReportRenderer {
             final String tags = ofNullable(target.getTags()).map(Object::toString).orElse("");
 
             log.info("#{} {} {}{}s {}",
-                fixedWidthLeft(job.getId() + "", 2),
+                fixedWidthLeft(job.getId() + "", 3),
                 fixedWidthLeft(name + " " + description, 50),
                 fixedWidthLeft(tags + " ", 22, '.'),
                 fixedWidthRight(" " + SECS_FMT.format(durationSecs), 10, '.'),
