@@ -3,7 +3,7 @@ package com.fizzed.buildx;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.jne.OperatingSystem;
+import com.fizzed.jne.PlatformInfo;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
@@ -261,14 +261,11 @@ public class Buildx {
                 // sync our project directory to the remote host
                 String sshHost = target.getHost();
 
-                // NOTE: rsync uses a unix-style path no matter which OS we're going to
-                String remoteRsyncProjectdir = remoteProjectDir;
-                if (hostInfo.getOs() == OperatingSystem.WINDOWS) {
-                    // we will assume windows is using "cygwin style" paths
-                    remoteRsyncProjectdir = remoteRsyncProjectdir.replace("\\", "/").replace("C:/", "/cygdrive/c/");
-                }
+                // we need our from & to paths (which may need adjusted if we're on windows)
+                String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir+"/");
+                String rsyncToPath = RsyncHelper.adjustPath(hostInfo.getOs(), remoteProjectDir+"/");
 
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", absProjectDir+"/", sshHost+":"+remoteRsyncProjectdir+"/")
+                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", rsyncFromPath, sshHost+":"+rsyncToPath)
                     .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
                     .pipeErrorToOutput()
                     .run();
