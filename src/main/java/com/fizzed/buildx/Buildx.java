@@ -292,7 +292,14 @@ public class Buildx {
             }
 
             // we are now ready to create a buildx job to run it
-            jobs.add(new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect));
+            final BuildxJob job = new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect);
+
+            if (parallel) {
+                // if we're running as parallel, let's make sure the log file has info about the job
+                outputRedirect.println(BuildxReportRenderer.renderJobInfo(job));
+            }
+
+            jobs.add(job);
         }
 
         // execute all the jobs

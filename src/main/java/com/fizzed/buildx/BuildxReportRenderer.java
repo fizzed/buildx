@@ -57,30 +57,37 @@ public class BuildxReportRenderer {
         sb.append("\n");
 
         for (BuildxJob job : jobs) {
-            sb.append(job.getTarget()).append("\n");
+            sb.append(renderJobInfo(job));
+            sb.append("\n");
             sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\n");
-            sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\n");
-            if (job.getTarget().getContainerImage() != null) {
-                sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\n");
-            }
-            if (job.getTarget().getData() != null) {
-                sb.append("  data:\n");
-                job.getTarget().getData().forEach((k,v) -> {
-                    sb.append("    ").append(k).append(": ").append(v).append("\n");
-                });
-            }
-            sb.append("  host:\n");
-            sb.append("    name: ").append(job.getTarget().getHost()).append("\n");
-            sb.append("    os: ").append(job.getHostInfo().getOs()).append("\n");
-            sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\n");
-            sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\n");
-
             sb.append("\n");
         }
 
         sb.append(fixedWidthLeft("", 100, '=')).append("\n");
 
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    static public String renderJobInfo(BuildxJob job) {
+        final StringBuilder sb = new StringBuilder();
+        sb.append(job.getTarget()).append("\n");
+        sb.append("  jobId: ").append(job.getId()).append("\n");
+        sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\n");
+        if (job.getTarget().getContainerImage() != null) {
+            sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\n");
+        }
+        if (job.getTarget().getData() != null) {
+            sb.append("  data:\n");
+            job.getTarget().getData().forEach((k,v) -> {
+                sb.append("    ").append(k).append(": ").append(v).append("\n");
+            });
+        }
+        sb.append("  host:\n");
+        sb.append("    name: ").append(job.getTarget().getHost()).append("\n");
+        sb.append("    os: ").append(job.getHostInfo().getOs()).append("\n");
+        sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\n");
+        sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\n");
+        return sb.toString();
     }
 
     static public void logResults(Logger log, List<BuildxJob> jobs) {
