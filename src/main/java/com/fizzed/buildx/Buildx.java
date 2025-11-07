@@ -206,7 +206,7 @@ public class Buildx {
 
             // for parallel builds we need to redirect STDOUT/STDERR to a file
             {
-                Path f = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + ".log");
+                Path f = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
                 outputFile = absProjectDir.relativize(f);
                 Files.createDirectories(outputFile.getParent());
 
@@ -216,16 +216,12 @@ public class Buildx {
                     // both stdout AND a copy in a logfile
                     outputRedirect = new PrintStream(new TeeOutputStream(System.out, Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)));
                 }
-
-                // write something to that file so we know it exists
-                outputRedirect.println("Log file for job #" + jobId);
-                outputRedirect.flush();
             }
 
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
             log.info("target: {}", target);
             log.info("jobId: {}", jobId);
-            log.info("outputFile: {}", ofNullable(outputFile).map(Path::toString).orElse("<stdout>"));
+            log.info("outputFile: {}", Optional.of(outputFile).map(Path::toString).orElse("<stdout>"));
             log.info("host: {}", ofNullable(target.getHost()).orElse("<local>"));
             log.info("containerImage: {}", ofNullable(target.getContainerImage()).orElse("<none>"));
             log.info("tags: {}", ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
