@@ -87,7 +87,12 @@ public class HostInfo {
     static public HostInfo probeLocal() {
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
         NativeTarget nativeTarget = NativeTarget.detect();
-        String uname = uname(localSession);
+        String uname;
+        try {
+            uname = uname(localSession);
+        } catch (Exception e) {
+            uname = System.getProperty("os.name") + " " +  System.getProperty("os.version") + " " + System.getProperty("os.arch");
+        }
         String fileSeparator = File.separator;
         String currentDir = Paths.get(".").toAbsolutePath().normalize().toString();
         String homeDir = System.getProperty("user.home");
@@ -185,18 +190,23 @@ public class HostInfo {
     }
 
     static private String uname(ExecSession execSession) {
-        // try uname, if any error, we might be on windows
-        CaptureOutput unameOutput = Streamables.captureOutput(false);
-        int unameExitCode = execSession.newExec().command("uname").args("-a")
-            .pipeOutput(unameOutput)
-            .pipeErrorToOutput()
-            .exitValues(0, 1)        // could fail with 1 on windows
-            .run();
+        try {
+            // try uname, if any error, we might be on windows
+            CaptureOutput unameOutput = Streamables.captureOutput(false);
+            int unameExitCode = execSession.newExec().command("uname").args("-a")
+                .pipeOutput(unameOutput)
+                .pipeErrorToOutput()
+                .exitValues(0, 1)        // could fail with 1 on windows
+                .run();
 
-        if (unameExitCode == 0) {
             return unameOutput.toString().trim();
-        } else {
-            // we may be on windows, let's try the "ver" command
+        } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
+            // we may be on windows
+            //log.info("", e);
+        }
+
+        try {
+            // we may be on windows, let's try the "ver" command (which works in a "cmd.exe" session)
             CaptureOutput verOutput = Streamables.captureOutput(false);
             int verExitCode = execSession.newExec().command("ver")
                 .pipeOutput(verOutput)
@@ -218,6 +228,9 @@ public class HostInfo {
                 String archOutputString = archOutput.toString().trim();
                 return verOutputString + " " + archOutputString;
             }
+        } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
+            // not good, this didn't work either
+            //log.info("", e);
         }
 
         throw new IllegalStateException("Unable to determine 'uname' of system");
