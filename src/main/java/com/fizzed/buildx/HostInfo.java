@@ -199,7 +199,9 @@ public class HostInfo {
                 .exitValues(0, 1)        // could fail with 1 on windows
                 .run();
 
-            return unameOutput.toString().trim();
+            if (unameExitCode == 0) {
+                return unameOutput.toString().trim();
+            }
         } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
             // we may be on windows
             //log.info("", e);
