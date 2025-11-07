@@ -39,13 +39,17 @@ public class Buildx {
     protected ContainerBuilder containerBuilder;
 
     public Buildx(List<Target> targets) {
+        this(Contexts.withBaseDir(".."), targets);
+    }
+
+    public Buildx(Path projectDir, List<Target> targets) {
         this.targets = targets;
         this.filters = new ArrayList<>();
 
         this.log = Contexts.logger();
-        this.relProjectDir = withBaseDir("..");
+        this.relProjectDir = projectDir;
         try {
-         this.absProjectDir = relProjectDir.toRealPath();
+            this.absProjectDir = relProjectDir.toRealPath();
         } catch (IOException e) {
          throw new UncheckedIOException(e);
         }
