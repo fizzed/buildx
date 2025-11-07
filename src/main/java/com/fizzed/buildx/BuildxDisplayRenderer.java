@@ -12,6 +12,7 @@ import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.fizzed.blaze.Systems.exec;
@@ -19,7 +20,7 @@ import static com.fizzed.blaze.util.TerminalHelper.*;
 import static com.fizzed.blaze.util.TerminalHelper.resetCode;
 import static java.util.Optional.ofNullable;
 
-public class BuildxReportRenderer {
+public class BuildxDisplayRenderer {
 
     static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");
 
@@ -57,7 +58,9 @@ public class BuildxReportRenderer {
         sb.append("\n");
 
         for (BuildxJob job : jobs) {
-            sb.append(renderJobInfo(job));
+            for (String line : renderJobLines(job.getId(), job.getTarget(), job.getHostInfo())) {
+                sb.append(line).append("\n");
+            }
             sb.append("\n");
             sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\n");
             sb.append("\n");
@@ -68,26 +71,25 @@ public class BuildxReportRenderer {
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    static public String renderJobInfo(BuildxJob job) {
-        final StringBuilder sb = new StringBuilder();
-        sb.append(job.getTarget()).append("\n");
-        sb.append("  jobId: ").append(job.getId()).append("\n");
-        sb.append("  tags: ").append(ofNullable(job.getTarget().getTags()).map(Object::toString).orElse("<none>")).append("\n");
-        if (job.getTarget().getContainerImage() != null) {
-            sb.append("  containerImage: ").append(job.getTarget().getContainerImage()).append("\n");
-        }
-        if (job.getTarget().getData() != null) {
-            sb.append("  data:\n");
-            job.getTarget().getData().forEach((k,v) -> {
-                sb.append("    ").append(k).append(": ").append(v).append("\n");
+    static public List<String> renderJobLines(int jobId, Target target, HostInfo hostInfo) {
+        List<String> lines = new ArrayList<>();
+        lines.add("Job #" + jobId + " for " + target);
+        lines.add("  host: " + ofNullable(target.getHost()).orElse("<local>"));
+        lines.add("  containerImage: " + ofNullable(target.getContainerImage()).orElse("<none>"));
+        lines.add("  tags: " + ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
+        if (target.getData() != null) {
+            lines.add("  data:");
+            target.getData().forEach((k,v) -> {
+                lines.add("    " + k + "=" + v);
             });
         }
-        sb.append("  host:\n");
-        sb.append("    name: ").append(job.getTarget().getHost()).append("\n");
-        sb.append("    os: ").append(job.getHostInfo().getOs()).append("\n");
-        sb.append("    arch: ").append(job.getHostInfo().getArch()).append("\n");
-        sb.append("    uname: ").append(job.getHostInfo().getUname()).append("\n");
-        return sb.toString();
+        if (hostInfo != null) {
+            lines.add("  hostInfo:");
+            lines.add("    os: " + hostInfo.getOs());
+            lines.add("    arch: " + hostInfo.getArch());
+            lines.add("    uname: " + hostInfo.getUname());
+        }
+        return lines;
     }
 
     static public void logResults(Logger log, List<BuildxJob> jobs) {

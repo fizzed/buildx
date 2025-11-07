@@ -4,10 +4,12 @@ import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
 import com.fizzed.jne.OperatingSystem;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,7 +23,6 @@ import static com.fizzed.blaze.Systems.exec;
 import static com.fizzed.blaze.util.Streamables.nullOutput;
 import static com.fizzed.blaze.util.TerminalHelper.*;
 import static java.util.Arrays.asList;
-import static java.util.Optional.ofNullable;
 
 public class Buildx {
 
@@ -209,28 +210,28 @@ public class Buildx {
                 Path f = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
                 outputFile = absProjectDir.relativize(f);
                 Files.createDirectories(outputFile.getParent());
+                OutputStream logFileOutput = Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
                 if (this.parallel) {
-                    outputRedirect = new PrintStream(Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING));
+                    outputRedirect = new PrintStream(logFileOutput);
                 } else {
                     // both stdout AND a copy in a logfile
-                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)));
+                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, logFileOutput));
                 }
+
+                // we can now log out to JUST the logfile, info about the job
+                for (String line : BuildxDisplayRenderer.renderJobLines(jobId, target, null)) {
+                    IOUtils.write(line + "\n", logFileOutput, StandardCharsets.UTF_8);
+                }
+                IOUtils.write("\n", logFileOutput, StandardCharsets.UTF_8);
             }
 
+            // log info about the job to the console
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
-            log.info("target: {}", target);
-            log.info("jobId: {}", jobId);
-            log.info("outputFile: {}", Optional.of(outputFile).map(Path::toString).orElse("<stdout>"));
-            log.info("host: {}", ofNullable(target.getHost()).orElse("<local>"));
-            log.info("containerImage: {}", ofNullable(target.getContainerImage()).orElse("<none>"));
-            log.info("tags: {}", ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
-            if (target.getData() != null) {
-                log.info("data:");
-                target.getData().forEach((k,v) -> {
-                    log.info("  {}={}", k, v);
-                });
+            for (String line : BuildxDisplayRenderer.renderJobLines(jobId, target, null)) {
+                log.info(line);
             }
+            log.info("");
 
             if (target.getHost() != null) {
                 sshSession = sshConnect("ssh://" + target.getHost()).run();
@@ -290,11 +291,6 @@ public class Buildx {
             // we are now ready to create a buildx job to run it
             final BuildxJob job = new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect);
 
-            if (parallel) {
-                // if we're running as parallel, let's make sure the log file has info about the job
-                outputRedirect.println(BuildxReportRenderer.renderJobInfo(job));
-            }
-
             jobs.add(job);
         }
 
@@ -305,10 +301,10 @@ public class Buildx {
 
         // write out the results
         if (this.resultsFile != null) {
-            BuildxReportRenderer.writeResults(jobs, this.resultsFile);
+            BuildxDisplayRenderer.writeResults(jobs, this.resultsFile);
         }
 
-        BuildxReportRenderer.logResults(log, jobs);
+        BuildxDisplayRenderer.logResults(log, jobs);
     }
 
     static public void createBuildxDirectory(Path projectDir) throws IOException {
