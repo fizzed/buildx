@@ -110,7 +110,8 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                 for (BuildxJob job : jobs) {
                     if (job.getStatus() == BuildxJobStatus.COMPLETED && job.getResult().getStatus() == ExecuteStatus.FAILED) {
                         lastFailedMessageLines++;
-                        System.out.println("  => job #" + job.getId() + " on " + job.getTarget() + " failed with log @ " + job.getOutputFile());
+                        // we need to clear the line since it may change
+                        System.out.println(clearLineCode() + "  => job #" + job.getId() + " on " + job.getTarget() + " failed with log @ " + job.getOutputFile());
                     }
                 }
             }
