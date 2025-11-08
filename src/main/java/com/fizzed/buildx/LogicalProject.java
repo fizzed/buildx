@@ -134,7 +134,7 @@ public class LogicalProject {
                 // SSH + Container (we need to map the remote path! for docker)
                 // adding ":z" fixes podman to mount as the user
                 // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
-                return this.hostExec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), exeOrNameOfExe)
+                return this.hostExec(this.containerExe, "run", "-v", this.getRemoteDir() + ":/project:z", "--userns=keep-id", "-w", "/project", this.target.getContainerImage(), exeOrNameOfExe)
                     .args(arguments);
             } else {
                 // SSH
@@ -147,7 +147,12 @@ public class LogicalProject {
                 // LOCAL + Container (we need to map the local path! for docker)
                 // adding ":z" fixes podman to mount as the user
                 // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
-                return this.hostExec(this.containerExe, "run", "-v", this.getAbsoluteDir() + ":/project:z", "--userns=keep-id", this.getContainerName(), exeOrNameOfExe)
+                return this.hostExec(this.containerExe, "run",
+                        "-e", "HOME=/remote-build",
+                        "-w", "/project",
+                        "-v", this.getAbsoluteDir() + ":/project:z",
+                        "-v", this.getAbsoluteDir().resolve(".buildx-cache") + ":/remote-build:z",
+                        "--userns=keep-id", this.target.getContainerImage(), exeOrNameOfExe)
                     .args(arguments);
             } else {
                 // LOCAL
@@ -265,14 +270,14 @@ public class LogicalProject {
             exec.arg("--no-cache");
         }
 
-        exec.args("--build-arg", "FROM_IMAGE="+target.getContainerImage(),
+        /*exec.args("--build-arg", "FROM_IMAGE="+target.getContainerImage(),
                 "--build-arg", "USERID="+userId,
                 "--build-arg", "USERNAME="+username,
                 "--build-arg", "INSTALL_SCRIPT="+installScript,
                 "-t", this.getContainerName(),
                 this.relativeDir.resolve("."));
 
-        exec.run();
+        exec.run();*/
     }
 
 }
