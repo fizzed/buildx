@@ -16,8 +16,8 @@ public class BuildxDemo {
         final List<Target> targets = asList(
 //            new Target("linux-x64").setHost("bmh-build-x64-linux-latest")
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
-//            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
-            new Target("linux-x64-container").setContainerImage("docker.io/fizzed/buildx:x64-ubuntu22-jdk21")
+            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
+//            new Target("linux-x64-container").setContainerImage("docker.io/fizzed/buildx:x64-ubuntu22-jdk21")
         );
 
         new Buildx(Paths.get("/home/jjlauer/workspace/fizzed/buildx"), targets)

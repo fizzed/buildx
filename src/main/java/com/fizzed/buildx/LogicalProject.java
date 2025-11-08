@@ -148,10 +148,10 @@ public class LogicalProject {
                 // adding ":z" fixes podman to mount as the user
                 // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
                 return this.hostExec(this.containerExe, "run",
-                        "-e", "HOME=/remote-build",
                         "-w", "/project",
+                        "-v", "/etc/passwd:/etc/passwd:ro",
                         "-v", this.getAbsoluteDir() + ":/project:z",
-                        "-v", this.getAbsoluteDir().resolve(".buildx-cache") + ":/remote-build:z",
+                        "-v", this.getAbsoluteDir().resolve(".buildx-cache") + ":/home/jjlauer:z",
                         "--userns=keep-id", this.target.getContainerImage(), exeOrNameOfExe)
                     .args(arguments);
             } else {
