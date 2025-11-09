@@ -20,7 +20,7 @@ public class BuildxDemo {
 //            new Target("linux-x64-container").setContainerImage("docker.io/fizzed/buildx:x64-ubuntu22-jdk21")
         );
 
-        new Buildx(Paths.get("/home/jjlauer/workspace/fizzed/buildx"), targets)
+        new Buildx(Paths.get("/Users/jjlauer/workspace/fizzed/buildx"), targets)
             .execute((target, project) -> {
                 project.exec("id", "-u").run();
 
@@ -31,7 +31,7 @@ public class BuildxDemo {
                 //project.exec("ls", "-la", "/remote-build/.m2").run();
 
 //                project.exec("mvn", "--version").run();
-                project.exec("java", "-jar", "blaze.jar").run();
+                project.exec("java", "-jar", "blaze.jar", "-x").run();
 
                 //project.exec("mvn", "compile").run();
 

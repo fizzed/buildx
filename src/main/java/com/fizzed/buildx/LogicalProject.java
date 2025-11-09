@@ -151,6 +151,7 @@ public class LogicalProject {
                         // the working dir becomes the home dir
                         "-v", this.getAbsoluteDir().resolve(".buildx-cache") + ":/buildx-cache:z",
                         "-w", "/buildx-cache",
+                        "-e", "HOME=/buildx-cache",
                         "-v", this.getAbsoluteDir() + ":/project:z",
                         "--userns=keep-id", this.target.getContainerImage(),
                         "/project/.buildx/container-exec.sh", "/project",
@@ -222,6 +223,10 @@ public class LogicalProject {
         if (containerBuilder == null) {
             // use defaults
             containerBuilder = new ContainerBuilder();
+        }
+
+        if (true) {
+            return;
         }
 
         // this command MUST be executed on the host we're building the container on
