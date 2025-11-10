@@ -10,10 +10,8 @@ import org.slf4j.Logger;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
-import static java.util.Optional.ofNullable;
 
 public class LogicalProject {
     private final Logger log = Contexts.logger();
@@ -215,17 +213,13 @@ public class LogicalProject {
             .pipeErrorToOutput();
     }
 
-    public void buildContainer() {
-        this.buildContainer(null);        // just use defaults
-    }
-
-    public void buildContainer(ContainerBuilder containerBuilder) {
+    public void prepareForContainers(ContainerBuilder containerBuilder) {
         if (containerBuilder == null) {
             // use defaults
             containerBuilder = new ContainerBuilder();
         }
 
-        if (true) {
+        /*if (true) {
             return;
         }
 
@@ -240,22 +234,24 @@ public class LogicalProject {
         final String userId = this.hostExec("id", "-u", username)
             .runCaptureOutput(false)
             .toString()
-            .trim();
+            .trim();*/
 
-        // create build cache for m2 and ivy2
+        // TODO: allow container builder to control what we're going to setup for caching???
+
+        // create build cache for m2 and blaze
         log.info("Creating .buildx-cache on container host...");
-        this.hostExec("mkdir", "-p", ".buildx-cache/blaze", ".buildx-cache/m2", ".buildx-cache/ivy2")
+        this.hostExec("mkdir", "-p", ".buildx-cache/.blaze", ".buildx-cache/.m2")
             .run();
 
         if (!containerBuilder.isSkipMavenSettingsCopy()) {
             // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs (if it exists)
             log.info("Copying <containerHost>/~/.m2/settings.xml to .buildx-cache on container host...");
-            this.hostExec("cp", "-f", this.hostInfo.getHomeDir() + "/.m2/settings.xml", ".buildx-cache/m2/settings.xml")
+            this.hostExec("cp", "-f", this.hostInfo.getHomeDir() + "/.m2/settings.xml", ".buildx-cache/.m2/settings.xml")
                 .exitValues(0, 1)       // 1 seems to occur if the file doesn't exist'
                 .run();
         }
 
-        Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);
+        /*Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);
         if (dockerFile == null) {
             dockerFile = Paths.get(".buildx/Dockerfile.linux");
             if (target.getContainerImage().contains("alpine")) {
@@ -275,7 +271,7 @@ public class LogicalProject {
 
         if (!cache) {
             exec.arg("--no-cache");
-        }
+        }*/
 
         /*exec.args("--build-arg", "FROM_IMAGE="+target.getContainerImage(),
                 "--build-arg", "USERID="+userId,

@@ -286,7 +286,7 @@ public class Buildx {
             // if we are running a container, we need to build it too
             if (container && this.autoBuildContainers) {
                 // build the container image using the supplied (or null/default)
-                project.buildContainer(this.containerBuilder);
+                project.prepareForContainers(this.containerBuilder);
             }
 
             // we are now ready to create a buildx job to run it
@@ -312,7 +312,7 @@ public class Buildx {
         Path buildxDir = projectDir.resolve(".buildx");
         Files.createDirectories(buildxDir);
         // copy resources into it
-        for (String name : asList("exec.sh", "exec.bat", "container-exec.sh", "noop-install.sh", "Dockerfile.linux", "Dockerfile.linux_musl")) {
+        for (String name : asList("exec.sh", "exec.bat", "container-exec.sh")) {
             final String resourceName = "/com/fizzed/buildx/"+name;
             try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
                 if (input == null) {

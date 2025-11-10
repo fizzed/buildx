@@ -17,8 +17,13 @@ public class BuildxDemo {
 //            new Target("linux-x64").setHost("bmh-build-x64-linux-latest")
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
-//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
-            new Target("linux-x64-container").setContainerImage("docker.io/sapmachine:21-jre")
+            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:8-jdk")
+//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:11-jdk")
+//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:17-jre")
+//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:21-jre")
+//            new Target("linux-x64-container").setContainerImage("docker.io/sapmachine:21-jre")
+            //new Target("linux-x64-container").setContainerImage("docker.io/sapmachine:8-jre")
 //            new Target("linux-x64-container").setContainerImage("docker.io/fizzed/buildx:x64-ubuntu22-jdk21")
         );
 
