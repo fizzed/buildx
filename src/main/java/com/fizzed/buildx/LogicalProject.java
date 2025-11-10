@@ -10,8 +10,10 @@ import org.slf4j.Logger;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
+import static java.util.Arrays.asList;
 
 public class LogicalProject {
     private final Logger log = Contexts.logger();
@@ -237,18 +239,39 @@ public class LogicalProject {
             .trim();*/
 
         // TODO: allow container builder to control what we're going to setup for caching???
-
-        // create build cache for m2 and blaze
         log.info("Creating .buildx-cache on container host...");
-        this.hostExec("mkdir", "-p", ".buildx-cache/.blaze", ".buildx-cache/.m2")
-            .run();
+
+        for (String dir : asList(".buildx-cache/.blaze", ".buildx-cache/.m2")) {
+            if (this.hostInfo.getOs() == OperatingSystem.WINDOWS) {
+                dir = dir.replace("/", this.hostInfo.getFileSeparator());
+
+                this.hostExec("cmd", "/C", "md \"" + dir + "\"")
+                    .exitValues(0, 1)       // if dir already exists it errors out with 1
+                    .run();
+            } else {
+                this.hostExec("mkdir", "-p", dir)
+                    .run();
+            }
+        }
 
         if (!containerBuilder.isSkipMavenSettingsCopy()) {
             // copy user's ~/.m2/settings.xml file to our per-buildx cache dirs (if it exists)
             log.info("Copying <containerHost>/~/.m2/settings.xml to .buildx-cache on container host...");
-            this.hostExec("cp", "-f", this.hostInfo.getHomeDir() + "/.m2/settings.xml", ".buildx-cache/.m2/settings.xml")
-                .exitValues(0, 1)       // 1 seems to occur if the file doesn't exist'
-                .run();
+
+            String fromFile = this.hostInfo.getHomeDir() + "/.m2/settings.xml";
+            String toFile = ".buildx-cache/.m2/settings.xml";
+
+            if (this.hostInfo.getOs() == OperatingSystem.WINDOWS) {
+                fromFile = fromFile.replace("/", this.hostInfo.getFileSeparator());
+                toFile = toFile.replace("/", this.hostInfo.getFileSeparator());
+
+                this.hostExec("cmd", "/C", "copy /Y \"" + fromFile + "\" \"" + toFile + "\"")
+                    .exitValues(0, 1)       // if dir already exists it errors out with 1
+                    .run();
+            } else {
+                this.hostExec("cp", "-f", fromFile, toFile)
+                    .run();
+            }
         }
 
         /*Path dockerFile = ofNullable(containerBuilder).map(ContainerBuilder::getDockerFile).orElse(null);
