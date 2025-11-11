@@ -3,10 +3,9 @@ package com.fizzed.buildx.internal;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.buildx.Project;
+import com.fizzed.buildx.SkipException;
 import com.fizzed.buildx.Target;
 import org.slf4j.Logger;
-
-import java.io.PrintStream;
 
 public class ProjectImpl implements Project {
     private final Logger log = Contexts.logger();
@@ -20,8 +19,8 @@ public class ProjectImpl implements Project {
     }
 
     @Override
-    public PrintStream out() {
-        return this.host.out();
+    public void skip(String reason) throws SkipException {
+        throw new SkipException(reason);
     }
 
     /*@Override
@@ -73,40 +72,10 @@ public class ProjectImpl implements Project {
 
             // add other arguments now
             return exec.args(arguments);
-
-
-            /*return this.hostExec(this.containerExe, "run",
-                    // the working dir becomes the home dir
-                    "-v", projectPath + "/.buildx-cache" + ":/buildx-cache:z",
-                    "-w", "/buildx-cache",
-                    "-e", "HOME=/buildx-cache",
-                    "-v", projectPath + ":/project:z",
-                    "--userns=keep-id", this.target.getContainerImage(),
-                    "/project/.buildx/container-exec.sh", "/project",
-                    exeOrNameOfExe)
-                .args(arguments);*/
         } else {
             return this.host.exec(exeOrNameOfExe)
                 .args(arguments);
         }
     }
-
-    /*public void prepareForContainers() {
-        // TODO: allow container builder to control what we're going to setup for caching???
-        log.info("Creating .buildx-cache on container host...");
-
-        for (String dir : asList(".buildx-cache")) {
-            if (this.hostInfo.getOs() == OperatingSystem.WINDOWS) {
-                dir = dir.replace("/", this.hostInfo.getFileSeparator());
-
-                this.hostExec("cmd", "/C", "md \"" + dir + "\"")
-                    .exitValues(0, 1)       // if dir already exists it errors out with 1
-                    .run();
-            } else {
-                this.hostExec("mkdir", "-p", dir)
-                    .run();
-            }
-        }
-    }*/
 
 }

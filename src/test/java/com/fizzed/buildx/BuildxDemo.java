@@ -18,8 +18,8 @@ public class BuildxDemo {
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
 
-//            new Target("linux-x64-local")
-            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+            new Target("linux-x64-local")
+//            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("windows-x64-host").setHost("bmh-build-x64-win11-1")
@@ -40,6 +40,7 @@ public class BuildxDemo {
 
         new Buildx(Paths.get("."), targets)
 
+//            .jobExecutor(new OnePerHostParallelJobExecutor())
             .jobExecutor(new SerialJobExecutor())
 
             .prepareHostForContainers(host -> {
@@ -53,6 +54,13 @@ public class BuildxDemo {
             })
 
             .execute((host, project, target) -> {
+
+                //project.skip("No JDK 21");
+
+                /*if (true) {
+                    throw new UnsupportedOperationException("Not yet implemented");
+                }*/
+
                 /*project.rsync(withUserDir(".m2/settings.xml").toString(), ".buildx/.m2/settings.xml")
                     .run();*/
 

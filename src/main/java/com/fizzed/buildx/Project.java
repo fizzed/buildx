@@ -2,11 +2,9 @@ package com.fizzed.buildx;
 
 import com.fizzed.blaze.system.Exec;
 
-import java.io.PrintStream;
-
 public interface Project {
 
-    PrintStream out();
+    void skip(String reason) throws SkipException;
 
     Exec exec(String exeOrNameOfExe, Object... arguments);
 

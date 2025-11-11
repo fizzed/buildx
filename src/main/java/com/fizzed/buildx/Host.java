@@ -9,8 +9,6 @@ public interface Host {
 
     String getHost();
 
-    PrintStream out();
-
     HostInfo getInfo();
 
     default boolean isLocal() {

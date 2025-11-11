@@ -58,7 +58,8 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
         }
 
         log.info("");
-        log.info("Executing {} jobs on {} hosts with {} execution strategy", jobs.size(), jobsPerHost.size(), this.getClass().getSimpleName());
+        log.info("Executing {} job(s) on {} host(s) with {} strategy", jobs.size(), jobsPerHost.size(), this.getClass().getSimpleName());
+        log.info("");
 
         final Timer timer = new Timer();
         final AsciiSpinner spinner = new AsciiSpinner();
@@ -94,11 +95,11 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                         pendingJobs++;
                     } else if (job.getStatus() == JobStatus.RUNNING) {
                         runningJobs++;
-                    } else if (job.getStatus() == JobStatus.COMPLETED) {
+                    } else if (job.getStatus().isCompleted()) {
                         completedJobs++;
-                        if (job.getResult().getStatus() == ExecuteStatus.SUCCESS) {
+                        if (job.getStatus() == JobStatus.SUCCESS) {
                             successJobs++;
-                        } else if (job.getResult().getStatus() == ExecuteStatus.FAILED) {
+                        } else if (job.getStatus() == JobStatus.FAILED) {
                             failedJobs++;
                         }
                     }
@@ -114,10 +115,10 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
 
                 lastFailedMessageLines = 0;
                 for (Job job : jobs) {
-                    if (job.getStatus() == JobStatus.COMPLETED && job.getResult().getStatus() == ExecuteStatus.FAILED) {
+                    if (job.getStatus().isCompleted() && job.getStatus() == JobStatus.FAILED) {
                         lastFailedMessageLines++;
                         // we need to clear the line since it may change
-                        System.out.println(clearLineCode() + "  => job #" + job.getId() + " on " + job.getTarget() + " failed with log @ " + job.getOutputFile());
+                        System.out.println(clearLineCode() + "  => job #" + job.getId() + " on " + job.getTarget() + " failed with log @ " + job.getOutputRedirect().getFile());
                     }
                 }
             }

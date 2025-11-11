@@ -17,6 +17,10 @@ public class SerialJobExecutor implements JobExecutor {
 
     @Override
     public void execute(List<Job> jobs) throws Exception {
+        log.info("");
+        log.info("Executing {} job(s) with {} strategy", jobs.size(), this.getClass().getSimpleName());
+        log.info("");
+
         for (Job job : jobs) {
             log.info(fixedWidthCenter("Running Job #" + job.getId(), 100, '='));
             log.info("target: {}", job.getTarget());

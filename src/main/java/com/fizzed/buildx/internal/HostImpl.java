@@ -7,10 +7,10 @@ import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
 import com.fizzed.buildx.Host;
 import com.fizzed.buildx.HostInfo;
+import com.fizzed.buildx.OutputRedirect;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -20,7 +20,7 @@ import static java.util.Arrays.asList;
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
 
-    private final PrintStream out;
+    private final OutputRedirect outputRedirect;
     private final String host;
     private final HostInfo info;
     private final Path absoluteDir;
@@ -28,8 +28,8 @@ public class HostImpl implements Host {
     private final String remoteDir;
     private final SshSession sshSession;
 
-    public HostImpl(PrintStream out, String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
-        this.out = out;
+    public HostImpl(OutputRedirect outputRedirect, String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
+        this.outputRedirect = outputRedirect;
         this.host = host;
         this.info = info;
         this.absoluteDir = absoluteDir;
@@ -61,11 +61,6 @@ public class HostImpl implements Host {
     @Override
     public HostInfo getInfo() {
         return info;
-    }
-
-    @Override
-    public PrintStream out() {
-        return this.out;
     }
 
     @Override
@@ -171,7 +166,7 @@ public class HostImpl implements Host {
                 .workingDir(this.absoluteDir);
         }
 
-        exec.pipeOutput(new CloseGuardedOutputStream(this.out));          // protect against being closed by Exec
+        exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect.getConsoleOutput()));          // protect against being closed by Exec
         exec.pipeErrorToOutput();
 
         return exec;
@@ -200,7 +195,7 @@ public class HostImpl implements Host {
 
         // -a or -t flags can sometimes cause unexpected file permissions issues
         return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest)
-            .pipeOutput(new CloseGuardedOutputStream(this.out))          // protect against being closed by Exec
+            .pipeOutput(new CloseGuardedOutputStream(this.outputRedirect.getConsoleOutput()))          // protect against being closed by Exec
             .pipeErrorToOutput();
     }
 

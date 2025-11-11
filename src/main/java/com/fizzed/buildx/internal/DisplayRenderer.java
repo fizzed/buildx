@@ -46,10 +46,9 @@ public class DisplayRenderer {
         sb.append("\n");
         for (Job job : jobs) {
             final Target target = job.getTarget();
-            final Result result = job.getResult();
-            String appendMessage = result.getStatus().name().toLowerCase();
-            if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
-                appendMessage += ": " + result.getMessage();
+            String appendMessage = stringifyLowerCase(job.getStatus(), "unknown");
+            if (job.getStatus() != JobStatus.SUCCESS && job.getMessage() != null) {
+                appendMessage += ": " + job.getMessage();
             }
             sb.append(fixedWidthLeft(target.toString(), 75, '.')).append(' ').append(appendMessage).append("\n");
         }
@@ -60,11 +59,11 @@ public class DisplayRenderer {
         sb.append("\n");
 
         for (Job job : jobs) {
-            for (String line : renderJobLines(job.getId(), job.getOutputFile(), job.getHost(), job.getTarget())) {
+            for (String line : renderJobLines(job.getId(), job.getOutputRedirect().getFile(), job.getHost(), job.getTarget())) {
                 sb.append(line).append("\n");
             }
             sb.append("\n");
-            sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\n");
+            sb.append("  status: ").append(stringifyLowerCase(job.getStatus(), "unknown")).append("\n");
             sb.append("\n");
         }
 
@@ -108,12 +107,11 @@ public class DisplayRenderer {
 
         for (Job job : jobs) {
             final Target target = job.getTarget();
-            final Result result = job.getResult();
-            final long durationMillis = result.getEndMillis() - result.getStartMillis();
+            final long durationMillis = job.getTimer().elapsed();
             final double durationSecs = (double)durationMillis/1000d;
 
             String statusMessage = "";
-            switch (result.getStatus()) {
+            switch (job.getStatus()) {
                 case SUCCESS:
                     statusMessage = greenCode() + "[success]" + resetCode();
                     break;
@@ -140,9 +138,9 @@ public class DisplayRenderer {
         log.info("");
 
         for (Job job : jobs) {
-            if (job.getResult().getStatus() == ExecuteStatus.FAILED) {
-                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutputFile());
-                log.error("  error => {}", job.getResult().getMessage());
+            if (job.getStatus() == JobStatus.FAILED) {
+                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutputRedirect().getFile());
+                log.error("  error => {}", job.getMessage());
                 log.info("");
             }
         }

@@ -177,8 +177,8 @@ public class Buildx {
         return this;
     }
 
-    public void execute(ProjectExecute projectExecute) throws Exception {
-        Objects.requireNonNull(projectExecute, "projectExecute");
+    public void execute(JobExecute jobExecute) throws Exception {
+        Objects.requireNonNull(jobExecute, "projectExecute");
         Objects.requireNonNull(this.jobExecutor, "jobExecutor");
         Objects.requireNonNull(this.relProjectDir, "relProjectDir");
         Objects.requireNonNull(this.absProjectDir, "absProjectDir");
@@ -214,28 +214,31 @@ public class Buildx {
             final int jobId = jobIdGenerator.getAndIncrement();
             final boolean container = target.getContainerImage() != null;
             final HostImpl host;
+            final HostInfo hostInfo;
             final ProjectImpl project;
             final SshSession sshSession;
             final String remoteProjectDir;
-            final HostInfo hostInfo;
-            final Path outputFile;
-            final OutputStream outputFileOutput;
-            final PrintStream outputRedirect;
+            final OutputRedirect outputRedirect;
 
-            // for parallel builds we need to redirect STDOUT/STDERR to a file
+            // logging file
             {
-                Path f = this.absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
-                outputFile = this.absProjectDir.relativize(f);
-                Files.createDirectories(outputFile.getParent());
-                outputFileOutput = Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                final Path absFile = this.absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
+                final Path file = this.absProjectDir.relativize(absFile);
+                Files.createDirectories(absFile.getParent());
+                final OutputStream underlyingFileOutput = Files.newOutputStream(file, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                final PrintStream fileOutput = new PrintStream(underlyingFileOutput);
+                final PrintStream consoleOutput;
 
                 if (!this.jobExecutor.isConsoleLoggingEnabled()) {
-                    outputRedirect = new PrintStream(outputFileOutput);
+                    consoleOutput = new PrintStream(underlyingFileOutput);
                 } else {
                     // both stdout AND a copy in a logfile
-                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, outputFileOutput));
+                    consoleOutput = new PrintStream(new TeeOutputStream(System.out, underlyingFileOutput));
                 }
+
+                outputRedirect = new OutputRedirect(file, fileOutput, consoleOutput, this.jobExecutor.isConsoleLoggingEnabled());
             }
+
 
             // log info about the job to the console
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
@@ -258,12 +261,12 @@ public class Buildx {
 
             // log job info to the console & output file
             log.info("");
-            for (String line : DisplayRenderer.renderJobLines(jobId, outputFile, host, target)) {
+            for (String line : DisplayRenderer.renderJobLines(jobId, outputRedirect.getFile(), host, target)) {
                 log.info(line);
-                IOUtils.write(line + "\n", outputFileOutput, StandardCharsets.UTF_8);
+                IOUtils.write(line + "\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
             }
             log.info("");
-            IOUtils.write("\n", outputFileOutput, StandardCharsets.UTF_8);
+            IOUtils.write("\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
 
 
             // if the host is remote, we need to rsync the project to the remote host
@@ -308,7 +311,7 @@ public class Buildx {
 
                     exec("rsync")
                         .args(rsyncArgs.toArray())
-                        .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
+                        .pipeOutput(new CloseGuardedOutputStream(outputRedirect.getConsoleOutput()))       // protect against being closed by Exec
                         .pipeErrorToOutput()
                         .run();
 
@@ -350,7 +353,7 @@ public class Buildx {
             project = new ProjectImpl(host, target);
 
             // we are now ready to create a buildx job to run it
-            final Job job = new Job(jobId, host, project, target, projectExecute, this.jobExecutor.isConsoleLoggingEnabled(), outputFile, outputRedirect);
+            final Job job = new Job(jobId, host, project, target, outputRedirect, jobExecute);
 
             jobs.add(job);
         }
