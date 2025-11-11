@@ -1,7 +1,8 @@
-package com.fizzed.buildx;
+package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
+import com.fizzed.buildx.*;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.List;
 import static com.fizzed.blaze.Systems.exec;
 import static com.fizzed.blaze.util.TerminalHelper.*;
 import static com.fizzed.blaze.util.TerminalHelper.resetCode;
+import static com.fizzed.buildx.internal.Utils.*;
 import static java.util.Optional.ofNullable;
 
 public class DisplayRenderer {
@@ -58,7 +60,7 @@ public class DisplayRenderer {
         sb.append("\n");
 
         for (Job job : jobs) {
-            for (String line : renderJobLines(job.getId(), job.getOutputFile(), job.getTarget(), job.getHostInfo())) {
+            for (String line : renderJobLines(job.getId(), job.getOutputFile(), job.getHost(), job.getTarget())) {
                 sb.append(line).append("\n");
             }
             sb.append("\n");
@@ -71,27 +73,31 @@ public class DisplayRenderer {
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    static public List<String> renderJobLines(int jobId, Path logFile, Target target, HostInfo hostInfo) {
+    static public List<String> renderJobLines(int jobId, Path logFile, HostImpl host, Target target) {
         List<String> lines = new ArrayList<>();
         lines.add("Job #" + jobId + " for " + target);
         if (logFile != null) {
             lines.add("  log file: " + logFile);
         }
-        lines.add("  host: " + ofNullable(target.getHost()).orElse("<local>"));
-        lines.add("  containerImage: " + ofNullable(target.getContainerImage()).orElse("<none>"));
-        lines.add("  tags: " + ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
-        if (target.getData() != null) {
+        lines.add("  host: " + host);
+        if (host.getInfo() != null) {
+            lines.add("    os: " + stringifyLowerCase(host.getInfo().getOs(), "<unknown>"));
+            lines.add("    arch: " + stringifyLowerCase(host.getInfo().getArch(), "<unknown>"));
+            lines.add("    uname: " + host.getInfo().getUname());
+            lines.add("    podman: " + host.getInfo().getPodmanVersion());
+            lines.add("    docker: " + host.getInfo().getDockerVersion());
+        }
+        lines.add("  containerImage: " + stringify(target.getContainerImage(), "<none>"));
+        lines.add("  tags: " + stringify(target.getTags(), "<none>"));
+        if (target.getData() != null && !target.getData().isEmpty()) {
             lines.add("  data:");
             target.getData().forEach((k,v) -> {
                 lines.add("    " + k + "=" + v);
             });
+        } else {
+            lines.add("  data: <none>");
         }
-        if (hostInfo != null) {
-            lines.add("  hostInfo:");
-            lines.add("    os: " + hostInfo.getOs());
-            lines.add("    arch: " + hostInfo.getArch());
-            lines.add("    uname: " + hostInfo.getUname());
-        }
+
         return lines;
     }
 

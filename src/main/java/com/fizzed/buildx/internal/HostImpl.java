@@ -1,15 +1,18 @@
-package com.fizzed.buildx;
+package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.buildx.Host;
+import com.fizzed.buildx.HostInfo;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static java.util.Arrays.asList;
@@ -35,6 +38,14 @@ public class HostImpl implements Host {
         this.sshSession = sshSession;
     }
 
+    public String getHost() {
+        return host;
+    }
+
+    public SshSession getSshSession() {
+        return sshSession;
+    }
+
     public Path getAbsoluteDir() {
         return absoluteDir;
     }
@@ -47,10 +58,6 @@ public class HostImpl implements Host {
         return remoteDir;
     }
 
-    public SshSession getSshSession() {
-        return sshSession;
-    }
-
     @Override
     public HostInfo getInfo() {
         return info;
@@ -59,6 +66,24 @@ public class HostImpl implements Host {
     @Override
     public PrintStream out() {
         return this.out;
+    }
+
+    @Override
+    public String toString() {
+        return this.host != null ? this.host : "<local>";
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (!(o instanceof HostImpl)) return false;
+
+        HostImpl host1 = (HostImpl) o;
+        return Objects.equals(host, host1.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(host);
     }
 
     // helpers
@@ -108,7 +133,7 @@ public class HostImpl implements Host {
         String dir = this.hostPath(path);
 
         if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            return this.exec("cmd", "/C", "md \"" + dir + "\"")
+            return this.exec("cmd.exe", "/C", "md \"" + dir + "\"")
                 .exitValues(0, 1);       // if dir already exists it errors out with 1
         } else {
             return this.exec("mkdir", "-p", dir);
@@ -121,7 +146,7 @@ public class HostImpl implements Host {
         String destFile = this.hostPath(destPath);
 
         if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            return this.exec("cmd", "/C", "copy /Y \"" + sourceFile + "\" \"" + destFile + "\"")
+            return this.exec("cmd.exe", "/C", "copy /Y \"" + sourceFile + "\" \"" + destFile + "\"")
                 .exitValues(0, 1);       // if dir already exists it errors out with 1
         } else {
             return this.exec("cp", sourceFile, destFile);

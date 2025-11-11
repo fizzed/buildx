@@ -1,7 +1,9 @@
-package com.fizzed.buildx;
+package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.system.Exec;
+import com.fizzed.buildx.Project;
+import com.fizzed.buildx.Target;
 import org.slf4j.Logger;
 
 import java.io.PrintStream;

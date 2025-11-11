@@ -3,6 +3,10 @@ package com.fizzed.buildx;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.buildx.internal.DisplayRenderer;
+import com.fizzed.buildx.internal.HostImpl;
+import com.fizzed.buildx.internal.ProjectImpl;
+import com.fizzed.buildx.internal.RsyncHelper;
 import com.fizzed.jne.PlatformInfo;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TeeOutputStream;
@@ -201,7 +205,8 @@ public class Buildx {
         // create the buildx dir and populate it
         this.createBuildxDirectory(this.absProjectDir);
 
-        final Set<String> containerHostsPrepared = new HashSet<>();
+        final Set<Host> hostsRsynced = new HashSet<>();
+        final Set<Host> hostsPreparedForContainers = new HashSet<>();
         final List<Job> jobs = new ArrayList<>();
         final AtomicInteger jobIdGenerator = new AtomicInteger(0);
 
@@ -235,7 +240,7 @@ public class Buildx {
             // log info about the job to the console
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
 
-            
+
             // we need host info first, so we can log to the console something more useful
             if (target.getHost() != null) {
                 sshSession = sshConnect("ssh://" + target.getHost()).run();
@@ -248,9 +253,12 @@ public class Buildx {
             }
 
 
+            host = new HostImpl(outputRedirect, target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
+
+
             // log job info to the console & output file
             log.info("");
-            for (String line : DisplayRenderer.renderJobLines(jobId, outputFile, target, hostInfo)) {
+            for (String line : DisplayRenderer.renderJobLines(jobId, outputFile, host, target)) {
                 log.info(line);
                 IOUtils.write(line + "\n", outputFileOutput, StandardCharsets.UTF_8);
             }
@@ -259,69 +267,82 @@ public class Buildx {
 
 
             // if the host is remote, we need to rsync the project to the remote host
-            if (target.getHost() != null) {
-                log.info("Remote project dir {}", remoteProjectDir);
+            if (host.isRemote()) {
+                if (!hostsRsynced.contains(host)) {
+                    log.info("Syncing project to {}:{}", host, remoteProjectDir);
 
-                // we may need to make the path to the remote project dir exists before we can rsync it
-                sshExec(sshSession, "mkdir", "remote-build")
-                    .exitValues(0, 1)
-                    .pipeOutput(nullOutput())
-                    .pipeErrorToOutput()
-                    .run();
+                    // we may need to make the path to the remote project dir exists before we can rsync it
+                    sshExec(sshSession, "mkdir", "remote-build")
+                        .exitValues(0, 1)
+                        .pipeOutput(nullOutput())
+                        .pipeErrorToOutput()
+                        .run();
 
-                sshExec(sshSession, "mkdir", "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName())
-                    .exitValues(0, 1)
-                    .pipeOutput(nullOutput())
-                    .pipeErrorToOutput()
-                    .run();
+                    sshExec(sshSession, "mkdir", "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName())
+                        .exitValues(0, 1)
+                        .pipeOutput(nullOutput())
+                        .pipeErrorToOutput()
+                        .run();
 
-                log.info("Rsync project to remote host...");
+                    log.info("Rsync project to remote host...");
 
-                // sync our project directory to the remote host
-                String sshHost = target.getHost();
+                    // sync our project directory to the remote host
+                    String sshHost = target.getHost();
 
-                // we need our from & to paths (which may need adjusted if we're on windows)
-                String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir+"/");
-                String rsyncToPath = RsyncHelper.adjustPath(hostInfo.getOs(), remoteProjectDir+"/");
+                    // we need our from & to paths (which may need adjusted if we're on windows)
+                    String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir + "/");
+                    String rsyncToPath = RsyncHelper.adjustPath(hostInfo.getOs(), remoteProjectDir + "/");
 
-                // build list of rsync arguments
-                List<String> rsyncArgs = new ArrayList<>();
-                rsyncArgs.addAll(asList("-vr", "--delete", "--progress"));
+                    // build list of rsync arguments
+                    List<String> rsyncArgs = new ArrayList<>();
+                    rsyncArgs.addAll(asList("-vr", "--delete", "--progress"));
 
-                if (this.ignorePaths != null) {
-                    for (String ignoreDir : this.ignorePaths) {
-                        rsyncArgs.add("--exclude=" + ignoreDir);
+                    if (this.ignorePaths != null) {
+                        for (String ignoreDir : this.ignorePaths) {
+                            rsyncArgs.add("--exclude=" + ignoreDir);
+                        }
                     }
+
+                    rsyncArgs.add(rsyncFromPath);
+                    rsyncArgs.add(sshHost + ":" + rsyncToPath);
+
+                    exec("rsync")
+                        .args(rsyncArgs.toArray())
+                        .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
+                        .pipeErrorToOutput()
+                        .run();
+
+                    // this host is done
+                    hostsRsynced.add(host);
+                } else {
+                    log.info("Skipping sync of project to {}:{} (already done for another target)", host, remoteProjectDir);
                 }
-
-                rsyncArgs.add(rsyncFromPath);
-                rsyncArgs.add(sshHost+":"+rsyncToPath);
-
-                exec("rsync")
-                    .args(rsyncArgs.toArray())
-                    .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
-                    .pipeErrorToOutput()
-                    .run();
             }
 
 
-            host = new HostImpl(outputRedirect, target.getHost(), hostInfo, absProjectDir, relProjectDir, remoteProjectDir, sshSession);
-
-
             // prepare the host for containers just the first time
-            if (container && !containerHostsPrepared.contains(target.getHost())) {
-                log.info("Preparing host {} for containers...", target.getHost());
+            if (container) {
+                if (!hostsPreparedForContainers.contains(host)) {
+                    log.info("Preparing host {} for containers...", host);
 
-                // make the .buildx-cache dir on the host, that'll be used a the home dir for the container
-                host.mkdir(".buildx-cache")
-                    .run();
+                    // does it even have podman or docker installed?
+                    if (host.getInfo().resolveContainerExe() == null) {
+                        throw new IllegalStateException("Host " + host.getHost() + " does not have either podman or docker installed");
+                    }
 
-                // now delegate the rest to what the user wants
-                if (this.prepareHostForContainers != null) {
-                    this.prepareHostForContainers.execute(host);
+                    // make the .buildx-cache dir on the host, that'll be used a the home dir for the container
+                    host.mkdir(".buildx-cache")
+                        .run();
+
+                    // now delegate the rest to what the user wants
+                    if (this.prepareHostForContainers != null) {
+                        this.prepareHostForContainers.execute(host);
+                    }
+
+                    hostsPreparedForContainers.add(host);
+                } else {
+                    log.info("Skipping prepare of host {} for containers (already done for another target)", host);
                 }
-
-                containerHostsPrepared.add(target.getHost());
             }
 
 
@@ -329,7 +350,7 @@ public class Buildx {
             project = new ProjectImpl(host, target);
 
             // we are now ready to create a buildx job to run it
-            final Job job = new Job(jobId, host, projectExecute, target, project, sshSession, this.jobExecutor.isConsoleLoggingEnabled(), outputFile, outputRedirect);
+            final Job job = new Job(jobId, host, project, target, projectExecute, this.jobExecutor.isConsoleLoggingEnabled(), outputFile, outputRedirect);
 
             jobs.add(job);
         }

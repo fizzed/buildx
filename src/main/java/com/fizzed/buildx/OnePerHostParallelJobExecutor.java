@@ -1,6 +1,7 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.util.Timer;
+import com.fizzed.buildx.internal.AsciiSpinner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

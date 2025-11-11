@@ -1,10 +1,10 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
-import com.fizzed.blaze.ssh.SshSession;
+import com.fizzed.buildx.internal.HostImpl;
+import com.fizzed.buildx.internal.ProjectImpl;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,12 +22,11 @@ public class Job implements Runnable {
     private final ProjectExecute projectExecute;
     private final Target target;
     private final ProjectImpl project;
-    private final SshSession sshSession;
-    private boolean consoleLoggingEnabled;
+    private final boolean consoleLoggingEnabled;
     private final Path outputFile;
     private final PrintStream outputRedirect;
 
-    public Job(int id, HostImpl host, ProjectExecute projectExecute, Target target, ProjectImpl project, SshSession sshSession, boolean consoleLoggingEnabled, Path outputFile, PrintStream outputRedirect) {
+    public Job(int id, HostImpl host, ProjectImpl project, Target target, ProjectExecute projectExecute, boolean consoleLoggingEnabled, Path outputFile, PrintStream outputRedirect) {
         this.id = id;
         this.host = host;
         this.statusRef = new AtomicReference<>(JobStatus.PENDING);
@@ -35,7 +34,6 @@ public class Job implements Runnable {
         this.projectExecute = projectExecute;
         this.target = target;
         this.project = project;
-        this.sshSession = sshSession;
         this.consoleLoggingEnabled = consoleLoggingEnabled;
         this.outputFile = outputFile;
         this.outputRedirect = outputRedirect;
@@ -45,8 +43,8 @@ public class Job implements Runnable {
         return this.id;
     }
 
-    public HostInfo getHostInfo() {
-        return this.host.getInfo();
+    public HostImpl getHost() {
+        return this.host;
     }
 
     public Result getResult() {
@@ -102,14 +100,6 @@ public class Job implements Runnable {
         } finally {
             this.result.setEndMillis(System.currentTimeMillis());
             this.statusRef.set(JobStatus.COMPLETED);
-            // do we need to close the associated ssh session?
-            if (this.sshSession != null) {
-                try {
-                    this.sshSession.close();
-                } catch (IOException e) {
-                    log.error("Error closing ssh session", e);
-                }
-            }
         }
     }
 
