@@ -73,6 +73,8 @@ public class BuildxDemo {
                 project.exec("java", "-version").run();
 
                 project.exec("cat", "/etc/os-release").run();*/
+                 project.exec("uname", "-a").run();
+                project.exec("cat", "/etc/os-release").run();
 
                 //project.exec("ls", "-la", "/remote-build/.m2").run();
 
