@@ -20,11 +20,11 @@ import static com.fizzed.blaze.util.TerminalHelper.*;
 import static com.fizzed.blaze.util.TerminalHelper.resetCode;
 import static java.util.Optional.ofNullable;
 
-public class BuildxDisplayRenderer {
+public class DisplayRenderer {
 
     static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");
 
-    static public void writeResults(List<BuildxJob> jobs, Path file) throws IOException {
+    static public void writeResults(List<Job> jobs, Path file) throws IOException {
         // get the current git hash: git log -1 --format=%H
         final CaptureOutput captureOutput = Streamables.captureOutput(false);
         exec("git", "log", "-1", "--format=%H")
@@ -42,7 +42,7 @@ public class BuildxDisplayRenderer {
         sb.append("Commit: ").append(gitCommitHash).append("\n");
         sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\n");
         sb.append("\n");
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             final Target target = job.getTarget();
             final Result result = job.getResult();
             String appendMessage = result.getStatus().name().toLowerCase();
@@ -57,8 +57,8 @@ public class BuildxDisplayRenderer {
         sb.append("Details =>\n");
         sb.append("\n");
 
-        for (BuildxJob job : jobs) {
-            for (String line : renderJobLines(job.getId(), job.getTarget(), job.getHostInfo())) {
+        for (Job job : jobs) {
+            for (String line : renderJobLines(job.getId(), job.getOutputFile(), job.getTarget(), job.getHostInfo())) {
                 sb.append(line).append("\n");
             }
             sb.append("\n");
@@ -71,9 +71,12 @@ public class BuildxDisplayRenderer {
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    static public List<String> renderJobLines(int jobId, Target target, HostInfo hostInfo) {
+    static public List<String> renderJobLines(int jobId, Path logFile, Target target, HostInfo hostInfo) {
         List<String> lines = new ArrayList<>();
         lines.add("Job #" + jobId + " for " + target);
+        if (logFile != null) {
+            lines.add("  log file: " + logFile);
+        }
         lines.add("  host: " + ofNullable(target.getHost()).orElse("<local>"));
         lines.add("  containerImage: " + ofNullable(target.getContainerImage()).orElse("<none>"));
         lines.add("  tags: " + ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
@@ -92,12 +95,12 @@ public class BuildxDisplayRenderer {
         return lines;
     }
 
-    static public void logResults(Logger log, List<BuildxJob> jobs) {
+    static public void logResults(Logger log, List<Job> jobs) {
         log.info("");
         log.info(fixedWidthCenter("Buildx Report", 100, '='));
         log.info("");
 
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             final Target target = job.getTarget();
             final Result result = job.getResult();
             final long durationMillis = result.getEndMillis() - result.getStartMillis();
@@ -130,7 +133,7 @@ public class BuildxDisplayRenderer {
 
         log.info("");
 
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             if (job.getResult().getStatus() == ExecuteStatus.FAILED) {
                 log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutputFile());
                 log.error("  error => {}", job.getResult().getMessage());

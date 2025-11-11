@@ -11,8 +11,13 @@ public class SerialJobExecutor implements JobExecutor {
     static private final Logger log = LoggerFactory.getLogger(SerialJobExecutor.class);
 
     @Override
-    public void execute(List<BuildxJob> jobs) throws Exception {
-        for (BuildxJob job : jobs) {
+    public boolean isConsoleLoggingEnabled() {
+        return true;
+    }
+
+    @Override
+    public void execute(List<Job> jobs) throws Exception {
+        for (Job job : jobs) {
             log.info(fixedWidthCenter("Running Job #" + job.getId(), 100, '='));
             log.info("target: {}", job.getTarget());
 

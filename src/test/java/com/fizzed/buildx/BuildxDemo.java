@@ -11,13 +11,17 @@ import static java.util.Arrays.asList;
 public class BuildxDemo {
 
     static public void main(String[] args) throws Exception {
-        LoggerConfig.setDefaultLogLevel(LogLevel.DEBUG);
+        //LoggerConfig.setDefaultLogLevel(LogLevel.DEBUG);
 
         final List<Target> targets = asList(
 //            new Target("linux-x64").setHost("bmh-build-x64-linux-latest")
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
-            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+
+//            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-on-host").setHost("bmh-dev-x64-fedora43-1")
+            new Target("linux-x64-container-on-host").setContainerImage("docker.io/eclipse-temurin:21-jdk").setHost("bmh-dev-x64-fedora43-1")
+
 //            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:8-jdk")
 //            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:11-jdk")
 //            new Target("linux-x64-container").setContainerImage("docker.io/eclipse-temurin:17-jre")
@@ -28,8 +32,22 @@ public class BuildxDemo {
         );
 
         new Buildx(Paths.get("."), targets)
-            .execute((target, project) -> {
-                project.exec("id", "-u").run();
+
+            .jobExecutor(new SerialJobExecutor())
+
+            .prepareHostForContainers(host -> {
+                // we want to supply containers with the hosts ~/.m2/settings.xml file for faster maven builds
+                host.mkdir(".buildx-cache/.m2")
+                    .run();
+                host.cp("~/.m2/settings.xml", ".buildx-cache/.m2/settings.xml")
+                    .run();
+            })
+
+            .execute((host, project, target) -> {
+                /*project.rsync(withUserDir(".m2/settings.xml").toString(), ".buildx/.m2/settings.xml")
+                    .run();*/
+
+                /*project.exec("id", "-u").run();
 
                 project.exec("pwd").run();
 
@@ -37,7 +55,7 @@ public class BuildxDemo {
 
                 project.exec("java", "-version").run();
 
-                project.exec("cat", "/etc/os-release").run();
+                project.exec("cat", "/etc/os-release").run();*/
 
                 //project.exec("ls", "-la", "/remote-build/.m2").run();
 

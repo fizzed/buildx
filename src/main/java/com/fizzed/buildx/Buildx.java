@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.fizzed.blaze.Contexts.withBaseDir;
 import static com.fizzed.blaze.SecureShells.sshConnect;
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
@@ -30,13 +29,13 @@ public class Buildx {
     protected final Path relProjectDir;
     protected final Path absProjectDir;
     protected Path resultsFile;
-    protected final String containerPrefix;
     protected final List<Target> targets;
     protected Set<String> tags;
     protected final List<Predicate<Target>> filters;
-    protected boolean parallel;
-    protected boolean autoBuildContainers;
-    protected ContainerBuilder containerBuilder;
+    protected JobExecutor jobExecutor;
+    // directories we don't want to sync to remote hosts
+    protected List<String> ignorePaths;
+    protected HostExecute prepareHostForContainers;
 
     public Buildx(List<Target> targets) {
         this(Contexts.withBaseDir(".."), targets);
@@ -54,10 +53,13 @@ public class Buildx {
          throw new UncheckedIOException(e);
         }
         this.resultsFile = null;        // disabled by default
-        this.containerPrefix = absProjectDir.getFileName().toString();
-        this.parallel = false;
-        this.autoBuildContainers = true;
-        this.containerBuilder = null;
+        this.jobExecutor = new OnePerHostParallelJobExecutor();
+        this.ignorePaths = new ArrayList<>();
+        this.ignorePaths.add(".git");
+        this.ignorePaths.add(".buildx-cache");
+        this.ignorePaths.add(".buildx-logs");
+        this.ignorePaths.add("target");
+        this.ignorePaths.add(".idea");
     }
 
     public List<Target> getTargets() {
@@ -97,35 +99,31 @@ public class Buildx {
         return this;
     }
 
-    public Buildx parallel() {
-        return this.parallel(true);
-    }
-
-    public Buildx parallel(boolean parallel) {
-        this.parallel = parallel;
+    public Buildx jobExecutor(JobExecutor jobExecutor) {
+        this.jobExecutor = jobExecutor;
         return this;
     }
 
-    public Buildx autoBuildContainers(boolean autoBuildContainers) {
-        this.autoBuildContainers = autoBuildContainers;
+    /**
+     * Adds a specific path to the list of paths to be ignored when rsyncing to remote hosts.
+     *
+     * @param ignorePath the path to be ignored
+     * @return the current instance of Buildx for method chaining
+     */
+    public Buildx ignorePath(String ignorePath) {
+        this.ignorePaths.add(ignorePath);
         return this;
     }
 
-    public Buildx containerBuilder(ContainerBuilder containerBuilder) {
-        this.containerBuilder = containerBuilder;
+    /**
+     * Adds multiple paths to the list of paths to be ignored when rsyncing to remote hosts.
+     *
+     * @param ignorePaths the list of paths to be ignored
+     * @return the current instance of Buildx for method chaining
+     */
+    public Buildx ignorePaths(List<String> ignorePaths) {
+        this.ignorePaths.addAll(ignorePaths);
         return this;
-    }
-
-    private void validateTargets() {
-        // validate if any targets have duplicate containers
-        final Set<String> validateContainerNames = new HashSet<>();
-        for (Target target : this.targets) {
-            String containerName = target.resolveContainerName(this.containerPrefix);
-            if (validateContainerNames.contains(containerName)) {
-                throw new IllegalStateException("Duplicate container name " + containerName + " detected for target " + target);
-            }
-            validateContainerNames.add(containerName);
-        }
     }
 
     public List<Target> filteredTargets() {
@@ -149,7 +147,7 @@ public class Buildx {
         log.info("{}", target);
         if (target.getContainerImage() != null) {
             log.info("  with container {}", target.getContainerImage());
-            log.info("  named {}", target.resolveContainerName(this.containerPrefix));
+            //log.info("  named {}", target.resolveContainerName(this.containerPrefix));
         }
         if (target.getHost() != null) {
             log.info("  on host {}", target.getHost());
@@ -170,82 +168,98 @@ public class Buildx {
         log.info("");
     }
 
-    public void execute(ProjectExecute projectExecute) throws Exception {
-        this.validateTargets();
+    public Buildx prepareHostForContainers(HostExecute prepareHostForContainers) {
+        this.prepareHostForContainers = prepareHostForContainers;
+        return this;
+    }
 
-        createBuildxDirectory(absProjectDir);
+    public void execute(ProjectExecute projectExecute) throws Exception {
+        Objects.requireNonNull(projectExecute, "projectExecute");
+        Objects.requireNonNull(this.jobExecutor, "jobExecutor");
+        Objects.requireNonNull(this.relProjectDir, "relProjectDir");
+        Objects.requireNonNull(this.absProjectDir, "absProjectDir");
 
         final String executeId = ""+System.currentTimeMillis();
         final List<Target> filteredTargets = this.filteredTargets();
-        final JobExecutor jobExecutor = this.parallel ? new OnePerHostParallelJobExecutor() : new SerialJobExecutor();
 
         log.info(fixedWidthCenter("Buildx Starting", 100, '='));
-        log.info("relativeDir: {}", relProjectDir);
-        log.info("absoluteDir: {}", absProjectDir);
-        log.info("containerPrefix: {}", containerPrefix);
         log.info("executeId: {}", executeId);
-        log.info("jobExecutor: {}", jobExecutor.getClass().getSimpleName());
+        log.info("relativeDir: {}", this.relProjectDir);
+        log.info("absoluteDir: {}", this.absProjectDir);
+        log.info("jobExecutor: {}", this.jobExecutor.getClass().getSimpleName());
         log.info("targets:");
         for (Target target : filteredTargets) {
             log.info(" -> {}", target);
         }
 
-        // are there any jobs?
+        // are there any targets to run??
         if (filteredTargets.isEmpty()) {
             log.error("No targets found, nothing to do");
             return;
         }
 
-        final List<BuildxJob> jobs = new ArrayList<>();
+        // create the buildx dir and populate it
+        this.createBuildxDirectory(this.absProjectDir);
+
+        final Set<String> containerHostsPrepared = new HashSet<>();
+        final List<Job> jobs = new ArrayList<>();
         final AtomicInteger jobIdGenerator = new AtomicInteger(0);
 
         for (Target target : filteredTargets) {
             final int jobId = jobIdGenerator.getAndIncrement();
             final boolean container = target.getContainerImage() != null;
-            final LogicalProject project;
+            final HostImpl host;
+            final ProjectImpl project;
             final SshSession sshSession;
             final String remoteProjectDir;
             final HostInfo hostInfo;
             final Path outputFile;
+            final OutputStream outputFileOutput;
             final PrintStream outputRedirect;
 
             // for parallel builds we need to redirect STDOUT/STDERR to a file
             {
-                Path f = absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
-                outputFile = absProjectDir.relativize(f);
+                Path f = this.absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
+                outputFile = this.absProjectDir.relativize(f);
                 Files.createDirectories(outputFile.getParent());
-                OutputStream logFileOutput = Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                outputFileOutput = Files.newOutputStream(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
-                if (this.parallel) {
-                    outputRedirect = new PrintStream(logFileOutput);
+                if (!this.jobExecutor.isConsoleLoggingEnabled()) {
+                    outputRedirect = new PrintStream(outputFileOutput);
                 } else {
                     // both stdout AND a copy in a logfile
-                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, logFileOutput));
+                    outputRedirect = new PrintStream(new TeeOutputStream(System.out, outputFileOutput));
                 }
-
-                // we can now log out to JUST the logfile, info about the job
-                for (String line : BuildxDisplayRenderer.renderJobLines(jobId, target, null)) {
-                    IOUtils.write(line + "\n", logFileOutput, StandardCharsets.UTF_8);
-                }
-                IOUtils.write("\n", logFileOutput, StandardCharsets.UTF_8);
             }
 
             // log info about the job to the console
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
-            for (String line : BuildxDisplayRenderer.renderJobLines(jobId, target, null)) {
-                log.info(line);
-            }
-            log.info("");
 
+            
+            // we need host info first, so we can log to the console something more useful
             if (target.getHost() != null) {
                 sshSession = sshConnect("ssh://" + target.getHost()).run();
-
-                // we need to detect some info about the host
                 hostInfo = HostInfo.probeRemote(sshSession);
-
-                // build the location to the remote project directory
                 remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+            } else {
+                sshSession = null;
+                remoteProjectDir = null;
+                hostInfo = HostInfo.probeLocal();
+            }
 
+
+            // log job info to the console & output file
+            log.info("");
+            for (String line : DisplayRenderer.renderJobLines(jobId, outputFile, target, hostInfo)) {
+                log.info(line);
+                IOUtils.write(line + "\n", outputFileOutput, StandardCharsets.UTF_8);
+            }
+            log.info("");
+            IOUtils.write("\n", outputFileOutput, StandardCharsets.UTF_8);
+
+
+            // if the host is remote, we need to rsync the project to the remote host
+            if (target.getHost() != null) {
                 log.info("Remote project dir {}", remoteProjectDir);
 
                 // we may need to make the path to the remote project dir exists before we can rsync it
@@ -254,7 +268,8 @@ public class Buildx {
                     .pipeOutput(nullOutput())
                     .pipeErrorToOutput()
                     .run();
-                sshExec(sshSession, "mkdir", "remote-build"+hostInfo.getFileSeparator()+absProjectDir.getFileName())
+
+                sshExec(sshSession, "mkdir", "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName())
                     .exitValues(0, 1)
                     .pipeOutput(nullOutput())
                     .pipeErrorToOutput()
@@ -269,28 +284,52 @@ public class Buildx {
                 String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir+"/");
                 String rsyncToPath = RsyncHelper.adjustPath(hostInfo.getOs(), remoteProjectDir+"/");
 
-                exec("rsync", "-vr", "--delete", "--progress", "--exclude=.git/", "--exclude=.buildx-cache/", "--exclude=.buildx-logs/", "--exclude=target/", rsyncFromPath, sshHost+":"+rsyncToPath)
+                // build list of rsync arguments
+                List<String> rsyncArgs = new ArrayList<>();
+                rsyncArgs.addAll(asList("-vr", "--delete", "--progress"));
+
+                if (this.ignorePaths != null) {
+                    for (String ignoreDir : this.ignorePaths) {
+                        rsyncArgs.add("--exclude=" + ignoreDir);
+                    }
+                }
+
+                rsyncArgs.add(rsyncFromPath);
+                rsyncArgs.add(sshHost+":"+rsyncToPath);
+
+                exec("rsync")
+                    .args(rsyncArgs.toArray())
                     .pipeOutput(new CloseGuardedOutputStream(outputRedirect))       // protect against being closed by Exec
                     .pipeErrorToOutput()
                     .run();
-            } else {
-                sshSession = null;
-                remoteProjectDir = null;
-                hostInfo = HostInfo.probeLocal();
             }
+
+
+            host = new HostImpl(outputRedirect, target.getHost(), hostInfo, absProjectDir, relProjectDir, remoteProjectDir, sshSession);
+
+
+            // prepare the host for containers just the first time
+            if (container && !containerHostsPrepared.contains(target.getHost())) {
+                log.info("Preparing host {} for containers...", target.getHost());
+
+                // make the .buildx-cache dir on the host, that'll be used a the home dir for the container
+                host.mkdir(".buildx-cache")
+                    .run();
+
+                // now delegate the rest to what the user wants
+                if (this.prepareHostForContainers != null) {
+                    this.prepareHostForContainers.execute(host);
+                }
+
+                containerHostsPrepared.add(target.getHost());
+            }
+
 
             // we have all the info now we need to build the "local project" we are working with
-            project = new LogicalProject(outputRedirect, target, containerPrefix, absProjectDir, relProjectDir, remoteProjectDir,
-                container, sshSession, hostInfo.resolveContainerExe(), hostInfo.getFileSeparator(), hostInfo);
-
-            // if we are running a container, we need to build it too
-            if (container && this.autoBuildContainers) {
-                // build the container image using the supplied (or null/default)
-                project.prepareForContainers(this.containerBuilder);
-            }
+            project = new ProjectImpl(host, target);
 
             // we are now ready to create a buildx job to run it
-            final BuildxJob job = new BuildxJob(jobId, hostInfo, projectExecute, target, project, sshSession, parallel, outputFile, outputRedirect);
+            final Job job = new Job(jobId, host, projectExecute, target, project, sshSession, this.jobExecutor.isConsoleLoggingEnabled(), outputFile, outputRedirect);
 
             jobs.add(job);
         }
@@ -302,17 +341,17 @@ public class Buildx {
 
         // write out the results
         if (this.resultsFile != null) {
-            BuildxDisplayRenderer.writeResults(jobs, this.resultsFile);
+            DisplayRenderer.writeResults(jobs, this.resultsFile);
         }
 
-        BuildxDisplayRenderer.logResults(log, jobs);
+        DisplayRenderer.logResults(log, jobs);
     }
 
-    static public void createBuildxDirectory(Path projectDir) throws IOException {
+    private void createBuildxDirectory(Path projectDir) throws IOException {
         Path buildxDir = projectDir.resolve(".buildx");
         Files.createDirectories(buildxDir);
         // copy resources into it
-        for (String name : asList("exec.sh", "exec.bat", "container-exec.sh")) {
+        for (String name : asList("host-exec.sh", "host-exec.bat", "container-exec.sh")) {
             final String resourceName = "/com/fizzed/buildx/"+name;
             try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
                 if (input == null) {
@@ -325,12 +364,12 @@ public class Buildx {
         }
     }
 
-    static private Set<String> buildFilter(String value) {
+    private Set<String> buildFilter(String value) {
         if (value != null) {
             value = value.trim();
-            if (value.length() > 0) {
+            if (!value.isEmpty()) {
                 return Arrays.stream(value.split(","))
-                    .map(v -> v.trim())
+                    .map(String::trim)
                     .collect(Collectors.toSet());
             }
         }

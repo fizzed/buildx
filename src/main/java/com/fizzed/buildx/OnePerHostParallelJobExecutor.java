@@ -18,18 +18,18 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
     static final private Logger log = LoggerFactory.getLogger(OnePerHostParallelJobExecutor.class);
 
     static public class BuildxJobs implements Runnable {
-        private final List<BuildxJob> jobs;
+        private final List<Job> jobs;
 
         public BuildxJobs() {
             this.jobs = new ArrayList<>();
         }
 
-        public void add(BuildxJob job) {
+        public void add(Job job) {
             this.jobs.add(job);
         }
 
         public void run() {
-            for (BuildxJob job : jobs) {
+            for (Job job : jobs) {
                 try {
                     log.debug("Executing job {} on target {}", job.getId(), job.getTarget());
                     job.run();
@@ -41,11 +41,16 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
     }
 
     @Override
-    public void execute(List<BuildxJob> jobs) throws Exception {
+    public boolean isConsoleLoggingEnabled() {
+        return false;
+    }
+
+    @Override
+    public void execute(List<Job> jobs) throws Exception {
         // we need to generate a list of jobs PER host (retain ordering with linked hash map)
         final Map<String,BuildxJobs> jobsPerHost = new LinkedHashMap<>();
 
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             String host = ofNullable(job.getTarget().getHost()).orElse("local");
             BuildxJobs hostJobs = jobsPerHost.computeIfAbsent(host, k -> new BuildxJobs());
             hostJobs.add(job);
@@ -83,12 +88,12 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                 failedJobs = 0;
 
                 // calculate each status
-                for (BuildxJob job : jobs) {
-                    if (job.getStatus() == BuildxJobStatus.PENDING) {
+                for (Job job : jobs) {
+                    if (job.getStatus() == JobStatus.PENDING) {
                         pendingJobs++;
-                    } else if (job.getStatus() == BuildxJobStatus.RUNNING) {
+                    } else if (job.getStatus() == JobStatus.RUNNING) {
                         runningJobs++;
-                    } else if (job.getStatus() == BuildxJobStatus.COMPLETED) {
+                    } else if (job.getStatus() == JobStatus.COMPLETED) {
                         completedJobs++;
                         if (job.getResult().getStatus() == ExecuteStatus.SUCCESS) {
                             successJobs++;
@@ -107,8 +112,8 @@ public class OnePerHostParallelJobExecutor implements JobExecutor {
                     + ", " + (failedJobs > 0 ? redCode() : "") + "failed: " + failedJobs + resetCode() + "] elapsed " + timer);
 
                 lastFailedMessageLines = 0;
-                for (BuildxJob job : jobs) {
-                    if (job.getStatus() == BuildxJobStatus.COMPLETED && job.getResult().getStatus() == ExecuteStatus.FAILED) {
+                for (Job job : jobs) {
+                    if (job.getStatus() == JobStatus.COMPLETED && job.getResult().getStatus() == ExecuteStatus.FAILED) {
                         lastFailedMessageLines++;
                         // we need to clear the line since it may change
                         System.out.println(clearLineCode() + "  => job #" + job.getId() + " on " + job.getTarget() + " failed with log @ " + job.getOutputFile());
