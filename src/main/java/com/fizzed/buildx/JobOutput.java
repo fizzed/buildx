@@ -3,14 +3,14 @@ package com.fizzed.buildx;
 import java.io.PrintStream;
 import java.nio.file.Path;
 
-public class OutputRedirect {
+public class JobOutput {
 
     private final Path file;
     private final PrintStream fileOutput;
     private final PrintStream consoleOutput;
     private final boolean consoleLogging;
 
-    public OutputRedirect(Path file, PrintStream fileOutput, PrintStream consoleOutput, boolean consoleLogging) {
+    public JobOutput(Path file, PrintStream fileOutput, PrintStream consoleOutput, boolean consoleLogging) {
         this.file = file;
         this.fileOutput = fileOutput;
         this.consoleOutput = consoleOutput;

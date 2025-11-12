@@ -59,7 +59,7 @@ public class DisplayRenderer {
         sb.append("\n");
 
         for (Job job : jobs) {
-            for (String line : renderJobLines(job.getId(), job.getOutputRedirect().getFile(), job.getHost(), job.getTarget())) {
+            for (String line : renderJobLines(job.getId(), job.getOutput().getFile(), job.getHost(), job.getTarget())) {
                 sb.append(line).append("\n");
             }
             for (String line : renderContainerLines(job.getContainer())) {
@@ -93,6 +93,9 @@ public class DisplayRenderer {
             lines.add("    uname: " + host.getInfo().getUname());
             lines.add("    podman: " + host.getInfo().getPodmanVersion());
             lines.add("    docker: " + host.getInfo().getDockerVersion());
+            /*lines.add("    fileSeparator: " + host.getInfo().getFileSeparator());
+            lines.add("    homeDir: " + host.getInfo().getHomeDir());
+            lines.add("    remoteDir: " + host.getAbsoluteDir());*/
         }
         lines.add("  tags: " + stringify(target.getTags(), "<none>"));
         if (target.getData() != null && !target.getData().isEmpty()) {
@@ -161,7 +164,7 @@ public class DisplayRenderer {
 
         for (Job job : jobs) {
             if (job.getStatus() == JobStatus.FAILED) {
-                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutputRedirect().getFile());
+                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutput().getFile());
                 log.error("  error => {}", job.getMessage());
                 log.info("");
             }

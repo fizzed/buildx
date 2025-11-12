@@ -8,7 +8,7 @@ import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
 import com.fizzed.buildx.Host;
 import com.fizzed.buildx.HostInfo;
-import com.fizzed.buildx.OutputRedirect;
+import com.fizzed.buildx.JobOutput;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
@@ -22,7 +22,7 @@ import static java.util.Arrays.asList;
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
 
-    private final OutputRedirect outputRedirect;
+    private final JobOutput jobOutput;
     private final String host;
     private final HostInfo info;
     private final Path absoluteDir;
@@ -30,8 +30,8 @@ public class HostImpl implements Host {
     private final String remoteDir;
     private final SshSession sshSession;
 
-    public HostImpl(OutputRedirect outputRedirect, String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
-        this.outputRedirect = outputRedirect;
+    public HostImpl(JobOutput jobOutput, String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
+        this.jobOutput = jobOutput;
         this.host = host;
         this.info = info;
         this.absoluteDir = absoluteDir;
@@ -188,7 +188,7 @@ public class HostImpl implements Host {
                 .workingDir(this.absoluteDir);
         }
 
-        exec.pipeOutput(new CloseGuardedOutputStream(this.outputRedirect.getConsoleOutput()));          // protect against being closed by Exec
+        exec.pipeOutput(new CloseGuardedOutputStream(this.jobOutput.getConsoleOutput()));          // protect against being closed by Exec
         exec.pipeErrorToOutput();
 
         return exec;
@@ -217,7 +217,7 @@ public class HostImpl implements Host {
 
         // -a or -t flags can sometimes cause unexpected file permissions issues
         return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest)
-            .pipeOutput(new CloseGuardedOutputStream(this.outputRedirect.getConsoleOutput()))          // protect against being closed by Exec
+            .pipeOutput(new CloseGuardedOutputStream(this.jobOutput.getConsoleOutput()))          // protect against being closed by Exec
             .pipeErrorToOutput();
     }
 

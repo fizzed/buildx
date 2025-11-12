@@ -23,6 +23,7 @@ import static com.fizzed.blaze.Systems.exec;
 import static com.fizzed.blaze.util.Streamables.nullOutput;
 import static com.fizzed.blaze.util.TerminalHelper.*;
 import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.joining;
 
 public class Buildx {
 
@@ -32,6 +33,7 @@ public class Buildx {
     protected Path resultsFile;
     protected final List<Target> targets;
     protected Set<String> tags;
+    protected boolean configure;
     protected final List<Predicate<Target>> filters;
     protected JobExecutor jobExecutor;
     // directories we don't want to sync to remote hosts
@@ -53,6 +55,7 @@ public class Buildx {
         } catch (IOException e) {
          throw new UncheckedIOException(e);
         }
+        this.configure = true;
         this.resultsFile = null;        // disabled by default
         this.jobExecutor = new OnePerHostParallelJobExecutor();
         this.ignorePaths = new ArrayList<>();
@@ -95,8 +98,8 @@ public class Buildx {
         return this;
     }
 
-    public Buildx containersOnly() {
-        this.filters.add(Target::hasContainer);
+    public Buildx configure(boolean configure) {
+        this.configure = configure;
         return this;
     }
 
@@ -127,28 +130,10 @@ public class Buildx {
         return this;
     }
 
-    public List<Target> filteredTargets() {
-        final String targetsFilterStr = Contexts.config().value("targets").orNull();
-        final String tagsFilterStr = Contexts.config().value("tags").orNull();
-        final String descriptionsFilter = Contexts.config().value("descriptions").orNull();
-        final Set<String> targetsFilter = buildFilter(targetsFilterStr);
-        final Set<String> tagsFilter = buildFilter(tagsFilterStr);
-
-        // build a final list of targets, applying the various filters
-        return this.targets.stream()
-            .filter(v -> targetsFilter == null || targetsFilter.stream().anyMatch(a -> v.getName().contains(a)))
-            .filter(v -> tagsFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsFilter)))
-            .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
-            .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
-            .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
-            .collect(Collectors.toList());
-    }
-
     private void logTarget(Target target) {
         log.info("{}", target);
         if (target.getContainerImage() != null) {
             log.info("  with container {}", target.getContainerImage());
-            //log.info("  named {}", target.resolveContainerName(this.containerPrefix));
         }
         if (target.getHost() != null) {
             log.info("  on host {}", target.getHost());
@@ -158,7 +143,7 @@ public class Buildx {
         }
     }
 
-    public void listTargets() {
+    /*public void listTargets() {
         final List<Target> filteredTargets = this.filteredTargets();
 
         for (Target target : filteredTargets) {
@@ -167,7 +152,7 @@ public class Buildx {
         }
 
         log.info("");
-    }
+    }*/
 
     public Buildx prepareHostForContainers(HostExecute prepareHostForContainers) {
         this.prepareHostForContainers = prepareHostForContainers;
@@ -180,8 +165,53 @@ public class Buildx {
         Objects.requireNonNull(this.relProjectDir, "relProjectDir");
         Objects.requireNonNull(this.absProjectDir, "absProjectDir");
 
-        final String executeId = ""+System.currentTimeMillis();
-        final List<Target> filteredTargets = this.filteredTargets();
+        // apply blaze configuration to build filtered targets, what executor to use
+        final String executeId = Long.toString(System.currentTimeMillis());
+        final List<Target> configuredTargets;
+        final JobExecutor configuredExecutor;
+        if (this.configure) {
+            configuredExecutor = this.configuredExecutor();
+            configuredTargets = this.configuredTargets();
+        } else {
+            configuredExecutor = this.jobExecutor;
+            configuredTargets = this.targets;
+        }
+
+
+        // if "configure" is enabled, let's print out some usage info as well
+        if (this.configure) {
+            final String exampleTargets = configuredTargets.stream()
+                .limit(3)
+                .map(Target::getName)
+                .collect(joining(","));
+
+            // build a set of all tags that are available
+            final Set<String> availableTags = new HashSet<>();
+            for (Target target : configuredTargets) {
+                if (target.getTags() != null) {
+                    availableTags.addAll(target.getTags());
+                }
+            }
+            final String exampleTags = availableTags.stream()
+                .limit(3)
+                .collect(joining(","));
+
+            log.info(fixedWidthCenter("Usage", 100, '!'));
+            log.info("");
+            log.info("You can modify how this task runs with a few different arguments.");
+            log.info("");
+            log.info("Run these tests in serial mode (default is parallel) (useful for debugging):");
+            log.info("  --serial");
+            log.info("");
+            log.info("Run these tests on a smaller subset of systems, as comma-delimited list, matched via 'contains' on targets:");
+            log.info("  --targets {}", exampleTargets);
+            log.info("");
+            log.info("Run these tests on a smaller subset of tags, as comma-delimited list, matched via 'equals' on tags:");
+            log.info("  --tags {}", exampleTags);
+            log.info("");
+            log.info(fixedWidthLeft("", 100, '!'));
+        }
+
 
         log.info(fixedWidthCenter("Buildx Starting", 100, '='));
         log.info("executeId: {}", executeId);
@@ -189,12 +219,12 @@ public class Buildx {
         log.info("absoluteDir: {}", this.absProjectDir);
         log.info("jobExecutor: {}", this.jobExecutor.getClass().getSimpleName());
         log.info("targets:");
-        for (Target target : filteredTargets) {
+        for (Target target : configuredTargets) {
             log.info(" -> {}", target);
         }
 
         // are there any targets to run??
-        if (filteredTargets.isEmpty()) {
+        if (configuredTargets.isEmpty()) {
             log.error("No targets found, nothing to do");
             return;
         }
@@ -202,22 +232,21 @@ public class Buildx {
         // create the buildx dir and populate it
         this.createBuildxDirectory(this.absProjectDir);
 
-        final Set<Host> hostsRsynced = new HashSet<>();
+        final Set<Host> hostsSynced = new HashSet<>();
         final Set<Host> hostsPreparedForContainers = new HashSet<>();
         final List<Job> jobs = new ArrayList<>();
         final AtomicInteger jobIdGenerator = new AtomicInteger(0);
 
-        for (Target target : filteredTargets) {
+        for (Target target : configuredTargets) {
             final int jobId = jobIdGenerator.getAndIncrement();
             final HostImpl host;
-            final HostInfo hostInfo;
             final ContainerImpl container;
             final ProjectImpl project;
             final SshSession sshSession;
             final String remoteProjectDir;
-            final OutputRedirect outputRedirect;
+            final JobOutput jobOutput;
 
-            // logging file
+            // 1: create output where job actions and stdout/stderr will go to
             {
                 final Path absFile = this.absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
                 final Path file = this.absProjectDir.relativize(absFile);
@@ -233,7 +262,7 @@ public class Buildx {
                     consoleOutput = new PrintStream(new TeeOutputStream(System.out, underlyingFileOutput));
                 }
 
-                outputRedirect = new OutputRedirect(file, fileOutput, consoleOutput, this.jobExecutor.isConsoleLoggingEnabled());
+                jobOutput = new JobOutput(file, fileOutput, consoleOutput, this.jobExecutor.isConsoleLoggingEnabled());
             }
 
 
@@ -241,22 +270,25 @@ public class Buildx {
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
 
 
-            // we need host info first, so we can log to the console something more useful
-            if (target.getHost() != null) {
-                sshSession = sshConnect("ssh://" + target.getHost()).run();
-                hostInfo = HostInfo.probeRemote(sshSession);
-                remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
-            } else {
-                sshSession = null;
-                remoteProjectDir = null;
-                hostInfo = HostInfo.probeLocal();
+            // 2: we need host info first, so we can log to the console something more useful
+            {
+                final HostInfo hostInfo;
+
+                if (target.getHost() != null) {
+                    sshSession = sshConnect("ssh://" + target.getHost()).run();
+                    hostInfo = HostInfo.probeRemote(sshSession);
+                    remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+                } else {
+                    sshSession = null;
+                    remoteProjectDir = null;
+                    hostInfo = HostInfo.probeLocal();
+                }
+
+                host = new HostImpl(jobOutput, target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
             }
 
 
-            host = new HostImpl(outputRedirect, target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
-
-
-            // if container, probe it (which also downloads and prepares it, then log it)
+            // 3: if container, probe it (which also downloads and prepares it, then log it)
             if (target.getContainerImage() != null) {
                 ContainerInfo containerInfo = ContainerInfo.probe(host, target.getContainerImage());
                 container = new ContainerImpl(target.getContainerImage(), containerInfo);
@@ -266,23 +298,23 @@ public class Buildx {
             }
 
 
-            // log job info to the console & output file
+            // 4: log job info to the console & output file
             log.info("");
-            for (String line : DisplayRenderer.renderJobLines(jobId, outputRedirect.getFile(), host, target)) {
+            for (String line : DisplayRenderer.renderJobLines(jobId, jobOutput.getFile(), host, target)) {
                 log.info(line);
-                IOUtils.write(line + "\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
+                IOUtils.write(line + "\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
             }
             for (String line : DisplayRenderer.renderContainerLines(container)) {
                 log.info(line);
-                IOUtils.write(line + "\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
+                IOUtils.write(line + "\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
             }
             log.info("");
-            IOUtils.write("\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
+            IOUtils.write("\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
 
 
-            // if the host is remote, we need to rsync the project to the remote host
+            // 5: if the host is remote, we need to rsync the project to the remote host (but only once per host)
             if (host.isRemote()) {
-                if (!hostsRsynced.contains(host)) {
+                if (!hostsSynced.contains(host)) {
                     log.info("Syncing project to {}:{}", host, remoteProjectDir);
 
                     // we may need to make the path to the remote project dir exists before we can rsync it
@@ -292,7 +324,7 @@ public class Buildx {
                         .pipeErrorToOutput()
                         .run();
 
-                    sshExec(sshSession, "mkdir", "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName())
+                    sshExec(sshSession, "mkdir", "remote-build" + host.getInfo().getFileSeparator() + absProjectDir.getFileName())
                         .exitValues(0, 1)
                         .pipeOutput(nullOutput())
                         .pipeErrorToOutput()
@@ -305,7 +337,7 @@ public class Buildx {
 
                     // we need our from & to paths (which may need adjusted if we're on windows)
                     String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir + "/");
-                    String rsyncToPath = RsyncHelper.adjustPath(hostInfo.getOs(), remoteProjectDir + "/");
+                    String rsyncToPath = RsyncHelper.adjustPath(host.getInfo().getOs(), remoteProjectDir + "/");
 
                     // build list of rsync arguments
                     List<String> rsyncArgs = new ArrayList<>();
@@ -322,19 +354,19 @@ public class Buildx {
 
                     exec("rsync")
                         .args(rsyncArgs.toArray())
-                        .pipeOutput(new CloseGuardedOutputStream(outputRedirect.getConsoleOutput()))       // protect against being closed by Exec
+                        .pipeOutput(new CloseGuardedOutputStream(jobOutput.getConsoleOutput()))       // protect against being closed by Exec
                         .pipeErrorToOutput()
                         .run();
 
                     // this host is done
-                    hostsRsynced.add(host);
+                    hostsSynced.add(host);
                 } else {
                     log.info("Skipping sync of project to {}:{} (already done for another target)", host, remoteProjectDir);
                 }
             }
 
 
-            // prepare the host for containers just the first time
+            // 6: prepare the host for containers (but only once per host)
             if (container != null) {
                 if (!hostsPreparedForContainers.contains(host)) {
                     log.info("Preparing host {} for containers...", host);
@@ -361,10 +393,10 @@ public class Buildx {
 
 
             // we have all the info now we need to build the "local project" we are working with
-            project = new ProjectImpl(host, target);
+            project = new ProjectImpl(host, container, target);
 
             // we are now ready to create a buildx job to run it
-            final Job job = new Job(jobId, host, container, project, target, outputRedirect, jobExecute);
+            final Job job = new Job(jobId, host, container, target, project, jobOutput, jobExecute);
 
             jobs.add(job);
         }
@@ -372,7 +404,7 @@ public class Buildx {
         // execute all the jobs
         log.info(fixedWidthCenter("Executing Jobs", 100, '='));
 
-        jobExecutor.execute(jobs);
+        configuredExecutor.execute(jobs);
 
         // write out the results
         if (this.resultsFile != null) {
@@ -380,6 +412,32 @@ public class Buildx {
         }
 
         DisplayRenderer.logResults(log, jobs);
+    }
+
+    private JobExecutor configuredExecutor() {
+        final boolean serial = Contexts.config().flag("serial").orElse(false);
+        if (serial) {
+            return new SerialJobExecutor();
+        } else {
+            return new OnePerHostParallelJobExecutor();
+        }
+    }
+
+    private List<Target> configuredTargets() {
+        final String targetsFilterStr = Contexts.config().value("targets").orNull();
+        final String tagsFilterStr = Contexts.config().value("tags").orNull();
+        final String descriptionsFilter = Contexts.config().value("descriptions").orNull();
+        final Set<String> targetsFilter = buildFilter(targetsFilterStr);
+        final Set<String> tagsFilter = buildFilter(tagsFilterStr);
+
+        // build a final list of targets, applying the various filters
+        return this.targets.stream()
+            .filter(v -> targetsFilter == null || targetsFilter.stream().anyMatch(a -> v.getName().contains(a)))
+            .filter(v -> tagsFilter == null || (v.getTags() != null && v.getTags().containsAll(tagsFilter)))
+            .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
+            .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
+            .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
+            .collect(Collectors.toList());
     }
 
     private void createBuildxDirectory(Path projectDir) throws IOException {

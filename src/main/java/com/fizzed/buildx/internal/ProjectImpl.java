@@ -11,10 +11,12 @@ public class ProjectImpl implements Project {
     private final Logger log = Contexts.logger();
 
     private final HostImpl host;
+    private final ContainerImpl container;
     private final Target target;
 
-    public ProjectImpl(HostImpl host, Target target) {
+    public ProjectImpl(HostImpl host, ContainerImpl container, Target target) {
         this.host = host;
+        this.container = container;
         this.target = target;
     }
 

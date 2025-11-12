@@ -20,7 +20,7 @@ public class BuildxDemo {
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
 //
 //            new Target("linux-x64-local")
-            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
@@ -32,7 +32,7 @@ public class BuildxDemo {
 //            new Target("freebsd-x64-host").setHost("bmh-build-x64-freebsd-latest")
 //            new Target("openbsd-x64-host").setHost("bmh-build-x64-openbsd-latest")
 //            new Target("macos-x64-host").setHost("bmh-build-x64-macos-latest")
-//            new Target("macos-x64-host").setHost("bmh-build-arm64-macos-latest")
+            new Target("macos-x64-host").setHost("bmh-build-arm64-macos-latest")
 //            new Target("linux-x64-host-container").setContainerImage("docker.io/eclipse-temurin:21-jdk").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setContainerImage("docker.io/eclipse-temurin:21-jdk").setHost("bmh-dev-x64-fedora43-1")
 

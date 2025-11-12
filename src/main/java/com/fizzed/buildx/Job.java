@@ -20,19 +20,19 @@ public class Job implements Runnable {
     private final ContainerImpl container;
     private final ProjectImpl project;
     private final Target target;
-    private final OutputRedirect outputRedirect;
+    private final JobOutput jobOutput;
     private final JobExecute jobExecute;
     private final AtomicReference<JobStatus> statusRef;
     private Timer timer;
     private String message;
 
-    public Job(int id, HostImpl host, ContainerImpl container, ProjectImpl project, Target target, OutputRedirect outputRedirect, JobExecute jobExecute) {
+    public Job(int id, HostImpl host, ContainerImpl container, Target target, ProjectImpl project, JobOutput jobOutput, JobExecute jobExecute) {
         this.id = id;
         this.host = host;
         this.container = container;
         this.target = target;
         this.project = project;
-        this.outputRedirect = outputRedirect;
+        this.jobOutput = jobOutput;
         this.jobExecute = jobExecute;
         this.statusRef = new AtomicReference<>(JobStatus.PENDING);
     }
@@ -57,8 +57,8 @@ public class Job implements Runnable {
         return this.target;
     }
 
-    public OutputRedirect getOutputRedirect() {
-        return outputRedirect;
+    public JobOutput getOutput() {
+        return jobOutput;
     }
 
     public JobStatus getStatus() {
@@ -90,16 +90,16 @@ public class Job implements Runnable {
             this.message = t.getMessage();
 
             // if we're not parallel, log the stacktrace to the console too
-            if (this.outputRedirect.isConsoleLogging()) {
+            if (this.jobOutput.isConsoleLogging()) {
                 log.error(fixedWidthCenter("Job #" + this.getId() + " Failed", 100, '#'));
                 log.error("Error executing target {}: {}", this.target, t.getMessage());
             }
 
             // always dump the stacktrace to the log
-            t.printStackTrace(this.outputRedirect.getConsoleOutput());
+            t.printStackTrace(this.jobOutput.getConsoleOutput());
 
             // log footer to console
-            if (this.outputRedirect.isConsoleLogging()) {
+            if (this.jobOutput.isConsoleLogging()) {
                 log.error(fixedWidthLeft("", 100, '#'));
             }
         } finally {
