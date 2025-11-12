@@ -19,8 +19,8 @@ public class BuildxDemo {
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
 
-            new Target("linux-x64-local")
-//            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-local")
+            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1"),
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
@@ -53,10 +53,8 @@ public class BuildxDemo {
             .prepareHostForContainers(host -> {
                 // we want to supply containers with the hosts ~/.m2/settings.xml file for faster maven builds
                 host.mkdir(".buildx-cache/.m2")
-                    .verbose()
                     .run();
                 host.cp("~/.m2/settings.xml", ".buildx-cache/.m2/settings.xml")
-                    .verbose()
                     .run();
             })
 
@@ -80,8 +78,8 @@ public class BuildxDemo {
                 project.exec("java", "-version").run();
 
                 project.exec("cat", "/etc/os-release").run();*/
-                 project.exec("uname", "-a").run();
-                project.exec("cat", "/etc/os-release").run();
+                 //project.exec("uname", "-a").run();
+               // project.exec("cat", "/etc/os-release").run();
 
                 //project.exec("ls", "-la", "/remote-build/.m2").run();
 

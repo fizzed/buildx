@@ -2,6 +2,7 @@ package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
+import com.fizzed.blaze.core.Action;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
@@ -11,7 +12,9 @@ import com.fizzed.buildx.OutputRedirect;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
@@ -124,27 +127,37 @@ public class HostImpl implements Host {
     }
 
     @Override
-    public Exec mkdir(String path) {
+    public Action<?,?> mkdir(String path) {
         String dir = this.hostPath(path);
 
-        if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            return this.exec("cmd.exe", "/C", "md \"" + dir + "\"")
-                .exitValues(0, 1);       // if dir already exists it errors out with 1
+        if (this.sshSession == null) {
+            return Systems.mkdir(Paths.get(path)).parents();
         } else {
-            return this.exec("mkdir", "-p", dir);
+            if (this.info.getOs() == OperatingSystem.WINDOWS) {
+                return this.exec("md", dir)
+                    .exitValues(0, 1);       // if dir already exists it errors out with 1
+            } else {
+                return this.exec("mkdir", "-p", dir);
+            }
         }
     }
 
     @Override
-    public Exec cp(String sourcePath, String destPath) {
+    public Action<?,?> cp(String sourcePath, String destPath) {
         String sourceFile = this.hostPath(sourcePath);
         String destFile = this.hostPath(destPath);
 
-        if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            return this.exec("cmd.exe", "/C", "copy /Y \"" + sourceFile + "\" \"" + destFile + "\"")
-                .exitValues(0, 1);       // if dir already exists it errors out with 1
+        if (this.sshSession == null) {
+            return Systems.cp(Paths.get(sourceFile))
+                .target(Paths.get(destFile))
+                .force();
         } else {
-            return this.exec("cp", sourceFile, destFile);
+            if (this.info.getOs() == OperatingSystem.WINDOWS) {
+                return this.exec("cmd.exe", "/C", "copy /Y \"" + sourceFile + "\" \"" + destFile + "\"")
+                    .exitValues(0, 1);       // if dir already exists it errors out with 1
+            } else {
+                return this.exec("cp", sourceFile, destFile);
+            }
         }
     }
 

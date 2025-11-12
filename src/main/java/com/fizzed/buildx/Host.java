@@ -1,5 +1,6 @@
 package com.fizzed.buildx;
 
+import com.fizzed.blaze.core.Action;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 
@@ -19,9 +20,9 @@ public interface Host {
         return !isLocal();
     }
 
-    Exec mkdir(String path);
+    Action<?,?> mkdir(String path);
 
-    Exec cp(String sourcePath, String destPath);
+    Action<?,?> cp(String sourcePath, String destPath);
 
     Exec exec(String exeOrNameOfExe, Object... arguments);
 
