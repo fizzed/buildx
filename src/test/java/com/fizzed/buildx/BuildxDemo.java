@@ -1,5 +1,6 @@
 package com.fizzed.buildx;
 
+import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.logging.LogLevel;
 import com.fizzed.blaze.logging.LoggerConfig;
 
@@ -20,8 +21,12 @@ public class BuildxDemo {
 
 //            new Target("linux-x64-local")
 //            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
-            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1"),
-            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1"),
+//            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
+//            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
+//            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("windows-x64-host").setHost("bmh-build-x64-win11-1")
 //        new Target("windows-x64-host-container").setHost("bmh-build-x64-win11-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("freebsd-x64-host").setHost("bmh-build-x64-freebsd-latest")

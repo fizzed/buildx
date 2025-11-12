@@ -8,14 +8,18 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.ExecSession;
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
+import com.fizzed.buildx.internal.SshSessionSystemExecutor;
 import com.fizzed.jne.HardwareArchitecture;
-import com.fizzed.jne.NativeTarget;
 import com.fizzed.jne.OperatingSystem;
+import com.fizzed.jne.PlatformInfo;
+import com.fizzed.jne.internal.SystemExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 
@@ -86,28 +90,36 @@ public class HostInfo {
 
     static public HostInfo probeLocal() {
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
-        NativeTarget nativeTarget = NativeTarget.detect();
+        // create a "JNE" executor that leverages the blaze ssh session
+        final SystemExecutor systemExecutor = SystemExecutor.LOCAL;
+        final PlatformInfo platformInfo = PlatformInfo.detectAll(systemExecutor);
+
+        /*NativeTarget nativeTarget = NativeTarget.detect();
         String uname;
         try {
             uname = uname(localSession);
         } catch (Exception e) {
             uname = System.getProperty("os.name") + " " +  System.getProperty("os.version") + " " + System.getProperty("os.arch");
-        }
+        }*/
+
         String fileSeparator = File.separator;
         String currentDir = Paths.get(".").toAbsolutePath().normalize().toString();
         String homeDir = System.getProperty("user.home");
         String podmanVersion = podmanVersion(localSession);
         String dockerVersion = dockerVersion(localSession);
-        return new HostInfo(uname, nativeTarget.getOperatingSystem(), nativeTarget.getHardwareArchitecture(), currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
+        return new HostInfo(platformInfo.getUname(), platformInfo.getOperatingSystem(), platformInfo.getHardwareArchitecture(), currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
     }
 
     static public HostInfo probeRemote(SshSession sshSession) {
         String currentDir = null;
         String fileSeperator = null;
-        final String uname = uname(sshSession);
-        final NativeTarget nativeTarget = NativeTarget.detectFromText(uname);
-        final OperatingSystem os = nativeTarget.getOperatingSystem();
-        final HardwareArchitecture arch = nativeTarget.getHardwareArchitecture();
+
+        // create a "JNE" executor that leverages the blaze ssh session
+        final SshSessionSystemExecutor systemExecutor = new SshSessionSystemExecutor(sshSession);
+        final PlatformInfo platformInfo = PlatformInfo.detectAll(systemExecutor);
+        final String uname = platformInfo.getUname();
+        final OperatingSystem os = platformInfo.getOperatingSystem();
+        final HardwareArchitecture arch = platformInfo.getHardwareArchitecture();
         String homeDir = null;
 
         // detect the current path & file separator
@@ -159,6 +171,8 @@ public class HostInfo {
         return new HostInfo(uname, os, arch, currentDir, homeDir, fileSeperator, podmanVersion, dockerVersion);
     }
 
+    static private final Pattern VERSION_PATTERN = Pattern.compile(".*(\\d+\\.\\d+\\.\\d+).*");
+
     static private String podmanVersion(ExecSession execSession) {
         try {
             // try uname, if any error, we might be on windows
@@ -168,10 +182,16 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            return podmanOutput.toString().trim().replace("podman version ", "");
+            // parse string for a version number of format X.X.X
+            String output = podmanOutput.toString().trim();
+            Matcher matcher = VERSION_PATTERN.matcher(output);
+            if (matcher.matches()) {
+                return matcher.group(1);
+            }
         } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            return null;
+            // not good, this didn't work either'
         }
+        return null;
     }
 
     static private String dockerVersion(ExecSession execSession) {
@@ -183,13 +203,19 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            return dockerOutput.toString().trim();
+            // parse string for a version number of format X.X.X
+            String output = dockerOutput.toString().trim();
+            Matcher matcher = VERSION_PATTERN.matcher(output);
+            if (matcher.matches()) {
+                return matcher.group(1);
+            }
         } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            return null;
+            // not good, this didn't work either'
         }
+        return null;
     }
 
-    static private String uname(ExecSession execSession) {
+    /*static private String uname(ExecSession execSession) {
         try {
             // try uname, if any error, we might be on windows
             CaptureOutput unameOutput = Streamables.captureOutput(false);
@@ -236,6 +262,6 @@ public class HostInfo {
         }
 
         throw new IllegalStateException("Unable to determine 'uname' of system");
-    }
+    }*/
 
 }

@@ -20,7 +20,7 @@
     
     <properties>
         <java.version>1.8</java.version>
-        <blaze.version>2.4.2</blaze.version>
+        <blaze.version>2.4.3-SNAPSHOT</blaze.version>
     </properties>
     
     <dependencies>
@@ -42,7 +42,7 @@
         <dependency>
             <groupId>com.fizzed</groupId>
             <artifactId>jne</artifactId>
-            <version>4.7.0</version>
+            <version>4.7.1-SNAPSHOT</version>
         </dependency>
 
         <!-- testing -->
