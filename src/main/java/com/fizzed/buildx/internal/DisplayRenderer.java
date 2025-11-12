@@ -62,6 +62,9 @@ public class DisplayRenderer {
             for (String line : renderJobLines(job.getId(), job.getOutputRedirect().getFile(), job.getHost(), job.getTarget())) {
                 sb.append(line).append("\n");
             }
+            for (String line : renderContainerLines(job.getContainer())) {
+                sb.append(line).append("\n");
+            }
             sb.append("\n");
             sb.append("  status: ").append(stringifyLowerCase(job.getStatus(), "unknown")).append("\n");
             sb.append("\n");
@@ -82,11 +85,15 @@ public class DisplayRenderer {
         if (host.getInfo() != null) {
             lines.add("    os: " + stringifyLowerCase(host.getInfo().getOs(), "<unknown>"));
             lines.add("    arch: " + stringifyLowerCase(host.getInfo().getArch(), "<unknown>"));
+            lines.add("    name: " + stringifyLowerCase(host.getInfo().getDisplayName(), "<unknown>"));
+            if (host.getInfo().getLibC() != null) {
+                lines.add("    libc: " + stringifyLowerCase(host.getInfo().getLibC(), "<unknown>")
+                    + " " + stringifyLowerCase(host.getInfo().getLibcVersion(), "<unknown>"));
+            }
             lines.add("    uname: " + host.getInfo().getUname());
             lines.add("    podman: " + host.getInfo().getPodmanVersion());
             lines.add("    docker: " + host.getInfo().getDockerVersion());
         }
-        lines.add("  containerImage: " + stringify(target.getContainerImage(), "<none>"));
         lines.add("  tags: " + stringify(target.getTags(), "<none>"));
         if (target.getData() != null && !target.getData().isEmpty()) {
             lines.add("  data:");
@@ -97,6 +104,21 @@ public class DisplayRenderer {
             lines.add("  data: <none>");
         }
 
+        return lines;
+    }
+
+    static public List<String> renderContainerLines(ContainerImpl container) {
+        List<String> lines = new ArrayList<>();
+        lines.add("  container: " + ofNullable(container).map(ContainerImpl::getImage).orElse("<none>"));
+        if (container != null) {
+            lines.add("    os: " + stringifyLowerCase(container.getInfo().getOs(), "<unknown>"));
+            lines.add("    arch: " + stringifyLowerCase(container.getInfo().getArch(), "<unknown>"));
+            lines.add("    name: " + stringifyLowerCase(container.getInfo().getDisplayName(), "<unknown>"));
+            if (container.getInfo().getLibC() != null) {
+                lines.add("    libc: " + stringifyLowerCase(container.getInfo().getLibC(), "<unknown>")
+                    + " " + stringifyLowerCase(container.getInfo().getLibcVersion(), "<unknown>"));
+            }
+        }
         return lines;
     }
 

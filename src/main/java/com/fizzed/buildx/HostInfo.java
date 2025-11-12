@@ -8,7 +8,7 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.ExecSession;
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
-import com.fizzed.buildx.internal.SshSessionSystemExecutor;
+import com.fizzed.buildx.internal.SystemExecutorSshSession;
 import com.fizzed.jne.*;
 import com.fizzed.jne.internal.SystemExecutor;
 import org.slf4j.Logger;
@@ -99,6 +99,8 @@ public class HostInfo {
     }
 
     static public HostInfo probeLocal() {
+        log.info("Probe host <local> for os/arch/etc...");
+
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
         final PlatformInfo platformInfo = PlatformInfo.detectAll(SystemExecutor.LOCAL);
         String fileSeparator = File.separator;
@@ -110,11 +112,13 @@ public class HostInfo {
     }
 
     static public HostInfo probeRemote(SshSession sshSession) {
+        log.info("Probe host {} for os/arch/etc...", sshSession.uri().getHost());
+
         String currentDir = null;
         String fileSeperator = null;
 
         // create a "JNE" executor that leverages the blaze ssh session
-        final SshSessionSystemExecutor systemExecutor = new SshSessionSystemExecutor(sshSession);
+        final SystemExecutor systemExecutor = new SystemExecutorSshSession(sshSession);
         final PlatformInfo platformInfo = PlatformInfo.detectAll(systemExecutor);
         String homeDir = null;
 

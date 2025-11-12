@@ -18,10 +18,10 @@ public class BuildxDemo {
 //            new Target("linux-x64").setHost("bmh-build-x64-linux-latest")
 //            new Target("windows-x64").setHost("bmh-build-x64-windows-latest")
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
-
+//
 //            new Target("linux-x64-local")
             new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
-//            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1"),
+//            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
@@ -47,8 +47,9 @@ public class BuildxDemo {
 
         new Buildx(Paths.get("."), targets)
 
-//            .jobExecutor(new OnePerHostParallelJobExecutor())
-            .jobExecutor(new SerialJobExecutor())
+            .jobExecutor(new OnePerHostParallelJobExecutor())
+//            .jobExecutor(new SerialJobExecutor())
+            .resultsFile(Paths.get("target/buildx-results.txt"))
 
             .prepareHostForContainers(host -> {
                 // we want to supply containers with the hosts ~/.m2/settings.xml file for faster maven builds

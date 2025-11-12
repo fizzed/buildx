@@ -51,6 +51,7 @@ public class ProjectImpl implements Project {
                 "-w", "/buildx-cache",
                 "-e", "HOME=/buildx-cache",
                 "-v", projectPath + ":/project:z",
+                "--rm",     // make sure container deletes itself after it finishes
                 "--userns=keep-id");
 
             // add other volumes

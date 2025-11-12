@@ -12,7 +12,6 @@ import com.fizzed.buildx.OutputRedirect;
 import com.fizzed.jne.OperatingSystem;
 import org.slf4j.Logger;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;

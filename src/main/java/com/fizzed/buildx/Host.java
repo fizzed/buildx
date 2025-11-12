@@ -1,10 +1,7 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.core.Action;
-import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
-
-import java.io.PrintStream;
 
 public interface Host {
 

@@ -3,10 +3,7 @@ package com.fizzed.buildx;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.buildx.internal.DisplayRenderer;
-import com.fizzed.buildx.internal.HostImpl;
-import com.fizzed.buildx.internal.ProjectImpl;
-import com.fizzed.buildx.internal.RsyncHelper;
+import com.fizzed.buildx.internal.*;
 import com.fizzed.jne.PlatformInfo;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TeeOutputStream;
@@ -212,9 +209,9 @@ public class Buildx {
 
         for (Target target : filteredTargets) {
             final int jobId = jobIdGenerator.getAndIncrement();
-            final boolean container = target.getContainerImage() != null;
             final HostImpl host;
             final HostInfo hostInfo;
+            final ContainerImpl container;
             final ProjectImpl project;
             final SshSession sshSession;
             final String remoteProjectDir;
@@ -259,9 +256,23 @@ public class Buildx {
             host = new HostImpl(outputRedirect, target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
 
 
+            // if container, probe it (which also downloads and prepares it, then log it)
+            if (target.getContainerImage() != null) {
+                ContainerInfo containerInfo = ContainerInfo.probe(host, target.getContainerImage());
+                container = new ContainerImpl(target.getContainerImage(), containerInfo);
+            } else {
+                // no container
+                container = null;
+            }
+
+
             // log job info to the console & output file
             log.info("");
             for (String line : DisplayRenderer.renderJobLines(jobId, outputRedirect.getFile(), host, target)) {
+                log.info(line);
+                IOUtils.write(line + "\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
+            }
+            for (String line : DisplayRenderer.renderContainerLines(container)) {
                 log.info(line);
                 IOUtils.write(line + "\n", outputRedirect.getFileOutput(), StandardCharsets.UTF_8);
             }
@@ -324,7 +335,7 @@ public class Buildx {
 
 
             // prepare the host for containers just the first time
-            if (container) {
+            if (container != null) {
                 if (!hostsPreparedForContainers.contains(host)) {
                     log.info("Preparing host {} for containers...", host);
 
@@ -353,7 +364,7 @@ public class Buildx {
             project = new ProjectImpl(host, target);
 
             // we are now ready to create a buildx job to run it
-            final Job job = new Job(jobId, host, project, target, outputRedirect, jobExecute);
+            final Job job = new Job(jobId, host, container, project, target, outputRedirect, jobExecute);
 
             jobs.add(job);
         }

@@ -7,11 +7,11 @@ import java.util.List;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 
-public class SshSessionSystemExecutor implements SystemExecutor {
+public class SystemExecutorSshSession implements SystemExecutor {
 
     private final SshSession sshSession;
 
-    public SshSessionSystemExecutor(SshSession sshSession) {
+    public SystemExecutorSshSession(SshSession sshSession) {
         this.sshSession = sshSession;
     }
 

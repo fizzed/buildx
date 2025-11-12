@@ -2,6 +2,7 @@ package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.util.Timer;
+import com.fizzed.buildx.internal.ContainerImpl;
 import com.fizzed.buildx.internal.HostImpl;
 import com.fizzed.buildx.internal.ProjectImpl;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ public class Job implements Runnable {
 
     private final int id;
     private final HostImpl host;
+    private final ContainerImpl container;
     private final ProjectImpl project;
     private final Target target;
     private final OutputRedirect outputRedirect;
@@ -24,9 +26,10 @@ public class Job implements Runnable {
     private Timer timer;
     private String message;
 
-    public Job(int id, HostImpl host, ProjectImpl project, Target target, OutputRedirect outputRedirect, JobExecute jobExecute) {
+    public Job(int id, HostImpl host, ContainerImpl container, ProjectImpl project, Target target, OutputRedirect outputRedirect, JobExecute jobExecute) {
         this.id = id;
         this.host = host;
+        this.container = container;
         this.target = target;
         this.project = project;
         this.outputRedirect = outputRedirect;
@@ -40,6 +43,10 @@ public class Job implements Runnable {
 
     public HostImpl getHost() {
         return this.host;
+    }
+
+    public ContainerImpl getContainer() {
+        return this.container;
     }
 
     public ProjectImpl getProject() {
