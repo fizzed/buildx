@@ -28,7 +28,7 @@ public class BuildxDemo {
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("windows-x64-host").setHost("bmh-build-x64-win11-1")
-//        new Target("windows-x64-host-container").setHost("bmh-build-x64-win11-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+//        new Target("windows-x64-host-container").setHost("bmh-dev-x64-win11-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("freebsd-x64-host").setHost("bmh-build-x64-freebsd-latest")
 //            new Target("openbsd-x64-host").setHost("bmh-build-x64-openbsd-latest")
 //            new Target("macos-x64-host").setHost("bmh-build-x64-macos-latest")

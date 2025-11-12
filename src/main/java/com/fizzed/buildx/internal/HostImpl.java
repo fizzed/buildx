@@ -121,7 +121,10 @@ public class HostImpl implements Host {
 
     private String hostPath(String path) {
         if (path.startsWith("~/")) {
-            return this.info.getHomeDir() + path.substring(1);
+            path = this.info.getHomeDir() + path.substring(1);
+        }
+        if (this.info.getOs() == OperatingSystem.WINDOWS) {
+            path = path.replace("/", this.info.getFileSeparator());
         }
         return path;
     }
@@ -131,13 +134,17 @@ public class HostImpl implements Host {
         String dir = this.hostPath(path);
 
         if (this.sshSession == null) {
-            return Systems.mkdir(Paths.get(path)).parents();
+            return Systems.mkdir(Paths.get(path))
+                .verbose()
+                .parents();
         } else {
             if (this.info.getOs() == OperatingSystem.WINDOWS) {
                 return this.exec("md", dir)
+                    .verbose()
                     .exitValues(0, 1);       // if dir already exists it errors out with 1
             } else {
-                return this.exec("mkdir", "-p", dir);
+                return this.exec("mkdir", "-p", dir)
+                    .verbose();
             }
         }
     }
@@ -149,14 +156,17 @@ public class HostImpl implements Host {
 
         if (this.sshSession == null) {
             return Systems.cp(Paths.get(sourceFile))
+                .verbose()
                 .target(Paths.get(destFile))
                 .force();
         } else {
             if (this.info.getOs() == OperatingSystem.WINDOWS) {
-                return this.exec("cmd.exe", "/C", "copy /Y \"" + sourceFile + "\" \"" + destFile + "\"")
+                return this.exec("copy", "/Y", sourceFile, destFile)
+                    .verbose()
                     .exitValues(0, 1);       // if dir already exists it errors out with 1
             } else {
-                return this.exec("cp", sourceFile, destFile);
+                return this.exec("cp", sourceFile, destFile)
+                    .verbose();
             }
         }
     }
