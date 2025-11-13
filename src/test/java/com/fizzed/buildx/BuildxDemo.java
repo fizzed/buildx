@@ -3,10 +3,12 @@ package com.fizzed.buildx;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.logging.LogLevel;
 import com.fizzed.blaze.logging.LoggerConfig;
+import com.fizzed.buildx.prepare.PrepareHostCopyMavenSettings;
 
 import java.nio.file.Paths;
 import java.util.List;
 
+import static com.fizzed.buildx.prepare.PrepareHostForContainerRecipes.copyMavenSettings;
 import static java.util.Arrays.asList;
 
 public class BuildxDemo {
@@ -50,15 +52,7 @@ public class BuildxDemo {
             .jobExecutor(new OnePerHostParallelJobExecutor())
 //            .jobExecutor(new SerialJobExecutor())
             .resultsFile(Paths.get("target/buildx-results.txt"))
-
-            .prepareHostForContainers(host -> {
-                // we want to supply containers with the hosts ~/.m2/settings.xml file for faster maven builds
-                host.mkdir(".buildx-cache/.m2")
-                    .run();
-                host.cp("~/.m2/settings.xml", ".buildx-cache/.m2/settings.xml")
-                    .run();
-            })
-
+            .prepareHostForContainer(copyMavenSettings())
             .execute((host, project, target) -> {
 
                 //project.skip("No JDK 21");

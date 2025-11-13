@@ -8,6 +8,6 @@ public interface Project {
 
     Exec exec(String exeOrNameOfExe, Object... arguments);
 
-    //Exec rsync(String sourcePath, String destPath);
+    Exec rsync(String sourcePath, String destPath);
 
 }

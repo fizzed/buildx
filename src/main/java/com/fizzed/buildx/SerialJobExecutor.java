@@ -24,7 +24,6 @@ public class SerialJobExecutor implements JobExecutor {
         for (Job job : jobs) {
             log.info(fixedWidthCenter("Running Job #" + job.getId(), 100, '='));
             log.info("target: {}", job.getTarget());
-
             job.run();
         }
     }

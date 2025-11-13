@@ -38,7 +38,7 @@ public class Buildx {
     protected JobExecutor jobExecutor;
     // directories we don't want to sync to remote hosts
     protected List<String> ignorePaths;
-    protected HostExecute prepareHostForContainers;
+    protected List<HostExecute> prepareHostForContainers;
 
     public Buildx(List<Target> targets) {
         this(Contexts.withBaseDir(".."), targets);
@@ -143,19 +143,18 @@ public class Buildx {
         }
     }
 
-    /*public void listTargets() {
-        final List<Target> filteredTargets = this.filteredTargets();
-
-        for (Target target : filteredTargets) {
-            log.info("");
-            this.logTarget(target);
+    /**
+     * Prepares the host for container-specific execution by adding a given host execution step
+     * to the list of actions to be performed on the host.
+     *
+     * @param prepareHostForContainer the host-specific execution step to be added
+     * @return the current instance of {@code Buildx} for method chaining
+     */
+    public Buildx prepareHostForContainer(HostExecute prepareHostForContainer) {
+        if (this.prepareHostForContainers == null) {
+            this.prepareHostForContainers = new ArrayList<>();
         }
-
-        log.info("");
-    }*/
-
-    public Buildx prepareHostForContainers(HostExecute prepareHostForContainers) {
-        this.prepareHostForContainers = prepareHostForContainers;
+        this.prepareHostForContainers.add(prepareHostForContainer);
         return this;
     }
 
@@ -217,7 +216,7 @@ public class Buildx {
         log.info("executeId: {}", executeId);
         log.info("relativeDir: {}", this.relProjectDir);
         log.info("absoluteDir: {}", this.absProjectDir);
-        log.info("jobExecutor: {}", this.jobExecutor.getClass().getSimpleName());
+        log.info("jobExecutor: {}", configuredExecutor.getClass().getSimpleName());
         log.info("targets:");
         for (Target target : configuredTargets) {
             log.info(" -> {}", target);
@@ -246,6 +245,9 @@ public class Buildx {
             final String remoteProjectDir;
             final JobOutput jobOutput;
 
+            // log info about the job to the console
+            log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
+
             // 1: create output where job actions and stdout/stderr will go to
             {
                 final Path absFile = this.absProjectDir.resolve(".buildx-logs/" + executeId + "/job-" + jobId + "-" + target.getName() + ".log");
@@ -255,20 +257,16 @@ public class Buildx {
                 final PrintStream fileOutput = new PrintStream(underlyingFileOutput);
                 final PrintStream consoleOutput;
 
-                if (!this.jobExecutor.isConsoleLoggingEnabled()) {
-                    consoleOutput = new PrintStream(underlyingFileOutput);
-                } else {
+                if (configuredExecutor.isConsoleLoggingEnabled()) {
                     // both stdout AND a copy in a logfile
+                    log.info("Writing job output to both stdout AND the log file {}", file);
                     consoleOutput = new PrintStream(new TeeOutputStream(System.out, underlyingFileOutput));
+                } else {
+                    consoleOutput = new PrintStream(underlyingFileOutput);
                 }
 
-                jobOutput = new JobOutput(file, fileOutput, consoleOutput, this.jobExecutor.isConsoleLoggingEnabled());
+                jobOutput = new JobOutput(file, fileOutput, consoleOutput, configuredExecutor.isConsoleLoggingEnabled());
             }
-
-
-            // log info about the job to the console
-            log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
-
 
             // 2: we need host info first, so we can log to the console something more useful
             {
@@ -382,7 +380,9 @@ public class Buildx {
 
                     // now delegate the rest to what the user wants
                     if (this.prepareHostForContainers != null) {
-                        this.prepareHostForContainers.execute(host);
+                        for (HostExecute prepareHostForContainer : this.prepareHostForContainers) {
+                            prepareHostForContainer.execute(host);
+                        }
                     }
 
                     hostsPreparedForContainers.add(host);

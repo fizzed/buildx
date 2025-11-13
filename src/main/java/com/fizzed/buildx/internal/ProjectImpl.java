@@ -25,10 +25,10 @@ public class ProjectImpl implements Project {
         throw new SkipException(reason);
     }
 
-    /*@Override
+    @Override
     public Exec rsync(String sourcePath, String destPath) {
         return this.host.rsync(sourcePath, destPath);
-    }*/
+    }
 
     /**
      * Executes a command ON the logical project such as in a container.

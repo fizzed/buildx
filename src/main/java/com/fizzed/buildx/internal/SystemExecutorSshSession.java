@@ -1,11 +1,13 @@
 package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.ssh.SshSession;
+import com.fizzed.blaze.system.Exec;
 import com.fizzed.jne.internal.SystemExecutor;
 
 import java.util.List;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
+import static com.fizzed.blaze.util.IntRange.intRange;
 
 public class SystemExecutorSshSession implements SystemExecutor {
 
@@ -30,8 +32,8 @@ public class SystemExecutorSshSession implements SystemExecutor {
         Object[] args = new Object[command.length - 1];
         System.arraycopy(command, 1, args, 0, args.length);
         return sshExec(this.sshSession, firstCommand, args)
-            .pipeErrorToOutput()
             .exitValues(exitValues.toArray(new Integer[0]))
+            .pipeErrorToOutput()
             .runCaptureOutput(false)
             .toString();
     }

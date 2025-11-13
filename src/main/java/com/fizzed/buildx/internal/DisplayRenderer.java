@@ -85,14 +85,15 @@ public class DisplayRenderer {
         if (host.getInfo() != null) {
             lines.add("    os: " + stringifyLowerCase(host.getInfo().getOs(), "<unknown>"));
             lines.add("    arch: " + stringifyLowerCase(host.getInfo().getArch(), "<unknown>"));
-            lines.add("    name: " + stringifyLowerCase(host.getInfo().getDisplayName(), "<unknown>"));
+            lines.add("    name: " + stringify(host.getInfo().getDisplayName(), "<unknown>"));
             if (host.getInfo().getLibC() != null) {
                 lines.add("    libc: " + stringifyLowerCase(host.getInfo().getLibC(), "<unknown>")
                     + " " + stringifyLowerCase(host.getInfo().getLibcVersion(), "<unknown>"));
             }
             lines.add("    uname: " + host.getInfo().getUname());
-            lines.add("    podman: " + host.getInfo().getPodmanVersion());
-            lines.add("    docker: " + host.getInfo().getDockerVersion());
+            lines.add("    podman: " + stringify(host.getInfo().getPodmanVersion(), "<not installed>"));
+            // TODO: we don't even support docker
+            //lines.add("    docker: " + host.getInfo().getDockerVersion());
             /*lines.add("    fileSeparator: " + host.getInfo().getFileSeparator());
             lines.add("    homeDir: " + host.getInfo().getHomeDir());
             lines.add("    remoteDir: " + host.getAbsoluteDir());*/
