@@ -102,7 +102,7 @@ public class HostInfo {
         log.info("Probe host <local> for os/arch/etc...");
 
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
-        final PlatformInfo platformInfo = PlatformInfo.detectAll(SystemExecutor.LOCAL);
+        final PlatformInfo platformInfo = PlatformInfo.detect(SystemExecutor.LOCAL, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
         String fileSeparator = File.separator;
         String currentDir = Paths.get(".").toAbsolutePath().normalize().toString();
         String homeDir = System.getProperty("user.home");
@@ -119,7 +119,7 @@ public class HostInfo {
 
         // create a "JNE" executor that leverages the blaze ssh session
         final SystemExecutor systemExecutor = new SystemExecutorSshSession(sshSession);
-        final PlatformInfo platformInfo = PlatformInfo.detectAll(systemExecutor);
+        final PlatformInfo platformInfo = PlatformInfo.detect(systemExecutor, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
         String homeDir = null;
 
         // detect the current path & file separator

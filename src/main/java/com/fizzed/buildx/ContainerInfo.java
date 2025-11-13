@@ -48,7 +48,7 @@ public class ContainerInfo {
 
         // create a "JNE" executor that leverages the blaze exec locally or on ssh session
         final SystemExecutor systemExecutor = new SystemExecutorHostContainer(host, containerImage);
-        final PlatformInfo platformInfo = PlatformInfo.detectAll(systemExecutor);
+        final PlatformInfo platformInfo = PlatformInfo.detect(systemExecutor, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
         return new ContainerInfo(platformInfo);
     }
 
