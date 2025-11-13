@@ -7,10 +7,10 @@ import java.util.List;
 
 public class SystemExecutorHostContainer implements SystemExecutor {
 
-    private final Host host;
+    private final HostImpl host;
     private final String containerImage;
 
-    public SystemExecutorHostContainer(Host host, String containerImage) {
+    public SystemExecutorHostContainer(HostImpl host, String containerImage) {
         this.host = host;
         this.containerImage = containerImage;
     }

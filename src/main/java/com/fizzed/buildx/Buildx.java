@@ -243,7 +243,7 @@ public class Buildx {
             final ProjectImpl project;
             final SshSession sshSession;
             final String remoteProjectDir;
-            final JobOutput jobOutput;
+            final JobOutput output;
 
             // log info about the job to the console
             log.info(fixedWidthCenter("Preparing Job #" + jobId, 100, '='));
@@ -265,7 +265,7 @@ public class Buildx {
                     consoleOutput = new PrintStream(underlyingFileOutput);
                 }
 
-                jobOutput = new JobOutput(file, fileOutput, consoleOutput, configuredExecutor.isConsoleLoggingEnabled());
+                output = new JobOutput(file, fileOutput, consoleOutput, configuredExecutor.isConsoleLoggingEnabled());
             }
 
             // 2: we need host info first, so we can log to the console something more useful
@@ -282,7 +282,7 @@ public class Buildx {
                     hostInfo = HostInfo.probeLocal();
                 }
 
-                host = new HostImpl(jobOutput, target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
+                host = new HostImpl(target.getHost(), hostInfo, this.absProjectDir, this.relProjectDir, remoteProjectDir, sshSession);
             }
 
 
@@ -298,16 +298,20 @@ public class Buildx {
 
             // 4: log job info to the console & output file
             log.info("");
-            for (String line : DisplayRenderer.renderJobLines(jobId, jobOutput.getFile(), host, target)) {
+            for (String line : DisplayRenderer.renderJobLines(jobId, output.getFile(), host, target)) {
                 log.info(line);
-                IOUtils.write(line + "\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
+                IOUtils.write(line + "\n", output.getFileOutput(), StandardCharsets.UTF_8);
             }
             for (String line : DisplayRenderer.renderContainerLines(container)) {
                 log.info(line);
-                IOUtils.write(line + "\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
+                IOUtils.write(line + "\n", output.getFileOutput(), StandardCharsets.UTF_8);
             }
             log.info("");
-            IOUtils.write("\n", jobOutput.getFileOutput(), StandardCharsets.UTF_8);
+            IOUtils.write("\n", output.getFileOutput(), StandardCharsets.UTF_8);
+
+
+            // at this point, we are ready for anything "exec"'ed on the job to be redirected where it should be
+            host.redirectOutput(output);
 
 
             // 5: if the host is remote, we need to rsync the project to the remote host (but only once per host)
@@ -352,7 +356,7 @@ public class Buildx {
 
                     exec("rsync")
                         .args(rsyncArgs.toArray())
-                        .pipeOutput(new CloseGuardedOutputStream(jobOutput.getConsoleOutput()))       // protect against being closed by Exec
+                        .pipeOutput(new CloseGuardedOutputStream(output.getConsoleOutput()))       // protect against being closed by Exec
                         .pipeErrorToOutput()
                         .run();
 
@@ -396,7 +400,7 @@ public class Buildx {
             project = new ProjectImpl(host, container, target);
 
             // we are now ready to create a buildx job to run it
-            final Job job = new Job(jobId, host, container, target, project, jobOutput, jobExecute);
+            final Job job = new Job(jobId, host, container, target, project, output, jobExecute);
 
             jobs.add(job);
         }

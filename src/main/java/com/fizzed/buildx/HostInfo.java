@@ -8,6 +8,7 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.ExecSession;
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
+import com.fizzed.blaze.util.Timer;
 import com.fizzed.buildx.internal.SystemExecutorSshSession;
 import com.fizzed.jne.*;
 import com.fizzed.jne.internal.SystemExecutor;
@@ -100,6 +101,7 @@ public class HostInfo {
 
     static public HostInfo probeLocal() {
         log.info("Probe host <local> for os/arch/etc...");
+        final Timer timer = new Timer();
 
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
         final PlatformInfo platformInfo = PlatformInfo.detect(SystemExecutor.LOCAL, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
@@ -108,11 +110,15 @@ public class HostInfo {
         String homeDir = System.getProperty("user.home");
         String podmanVersion = podmanVersion(localSession);
         String dockerVersion = dockerVersion(localSession);
+
+        log.info("Probed host <local> for os/arch/etc (in {})", timer);
+
         return new HostInfo(platformInfo, currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
     }
 
     static public HostInfo probeRemote(SshSession sshSession) {
         log.info("Probe host {} for os/arch/etc...", sshSession.uri().getHost());
+        final Timer timer = new Timer();
 
         String currentDir = null;
         String fileSeperator = null;
@@ -167,6 +173,8 @@ public class HostInfo {
 
         String podmanVersion = podmanVersion(sshSession);
         String dockerVersion = dockerVersion(sshSession);
+
+        log.info("Probed host {} for os/arch/etc (in {})", sshSession.uri().getHost(), timer);
 
         return new HostInfo(platformInfo, currentDir, homeDir, fileSeperator, podmanVersion, dockerVersion);
     }

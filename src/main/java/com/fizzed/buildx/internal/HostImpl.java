@@ -17,27 +17,26 @@ import java.nio.file.Paths;
 import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
-import static java.util.Arrays.asList;
 
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
 
-    private final JobOutput jobOutput;
     private final String host;
     private final HostInfo info;
     private final Path absoluteDir;
     private final Path relativeDir;
     private final String remoteDir;
     private final SshSession sshSession;
+    private JobOutput output;
 
-    public HostImpl(JobOutput jobOutput, String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
-        this.jobOutput = jobOutput;
+    public HostImpl(String host, HostInfo info, Path absoluteDir, Path relativeDir, String remoteDir, SshSession sshSession) {
         this.host = host;
         this.info = info;
         this.absoluteDir = absoluteDir;
         this.relativeDir = relativeDir;
         this.remoteDir = remoteDir;
         this.sshSession = sshSession;
+        this.output = null;
     }
 
     public String getHost() {
@@ -63,6 +62,19 @@ public class HostImpl implements Host {
     @Override
     public HostInfo getInfo() {
         return info;
+    }
+
+    public JobOutput getOutput() {
+        return output;
+    }
+
+    @Override
+    public boolean isOutputRedirected() {
+        return this.output != null && !this.output.isConsoleLogging();
+    }
+
+    public void redirectOutput(JobOutput jobOutput) {
+        this.output = jobOutput;
     }
 
     @Override
@@ -188,8 +200,12 @@ public class HostImpl implements Host {
                 .workingDir(this.absoluteDir);
         }
 
-        exec.pipeOutput(new CloseGuardedOutputStream(this.jobOutput.getConsoleOutput()));          // protect against being closed by Exec
-        exec.pipeErrorToOutput();
+        // do we need to redirect output?
+        if (this.output != null) {
+            // protect against being closed by Exec
+            exec.pipeOutput(new CloseGuardedOutputStream(this.output.getConsoleOutput()));
+            exec.pipeErrorToOutput();
+        }
 
         return exec;
     }
@@ -216,27 +232,15 @@ public class HostImpl implements Host {
         log.debug("Rsyncing {} -> {}", src, dest);
 
         // -a or -t flags can sometimes cause unexpected file permissions issues
-        return Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest)
-            .pipeOutput(new CloseGuardedOutputStream(this.jobOutput.getConsoleOutput()))          // protect against being closed by Exec
-            .pipeErrorToOutput();
-    }
+        Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
 
-    public void prepareForContainers() {
-        // TODO: allow container builder to control what we're going to setup for caching???
-        log.info("Creating .buildx-cache on container host...");
-
-        for (String dir : asList(".buildx-cache")) {
-            if (this.info.getOs() == OperatingSystem.WINDOWS) {
-                dir = dir.replace("/", this.info.getFileSeparator());
-
-                this.exec("cmd", "/C", "md \"" + dir + "\"")
-                    .exitValues(0, 1)       // if dir already exists it errors out with 1
-                    .run();
-            } else {
-                this.exec("mkdir", "-p", dir)
-                    .run();
-            }
+        if (this.output != null) {
+            // protect against being closed by Exec
+            exec.pipeOutput(new CloseGuardedOutputStream(this.output.getConsoleOutput()));
+            exec.pipeErrorToOutput();
         }
+
+        return exec;
     }
 
 }

@@ -1,5 +1,7 @@
 package com.fizzed.buildx;
 
+import com.fizzed.blaze.util.Timer;
+import com.fizzed.buildx.internal.HostImpl;
 import com.fizzed.buildx.internal.SystemExecutorHostContainer;
 import com.fizzed.jne.*;
 import com.fizzed.jne.internal.SystemExecutor;
@@ -43,12 +45,20 @@ public class ContainerInfo {
         return this.platformInfo.getLibCVersion();
     }
 
-    static public ContainerInfo probe(Host host, String containerImage) {
+    static public ContainerInfo probe(HostImpl host, String containerImage) {
         log.info("Probe container {} for os/arch/etc...", containerImage);
+        final Timer timer = new Timer();
+
+        // we actually need to do one container command first, so we have it pulled
+        log.info("Testing container {}...", containerImage);
+        host.exec(host.getInfo().resolveContainerExe(), "run", containerImage, "sh", "-c", "uname > /dev/null").run();
 
         // create a "JNE" executor that leverages the blaze exec locally or on ssh session
         final SystemExecutor systemExecutor = new SystemExecutorHostContainer(host, containerImage);
         final PlatformInfo platformInfo = PlatformInfo.detect(systemExecutor, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
+
+        log.info("Probed container {} for os/arch/etc (in {})", containerImage, timer);
+
         return new ContainerInfo(platformInfo);
     }
 

@@ -17,6 +17,8 @@ public interface Host {
         return !isLocal();
     }
 
+    boolean isOutputRedirected();
+
     Action<?,?> mkdir(String path);
 
     Action<?,?> cp(String sourcePath, String destPath);
