@@ -1,4 +1,4 @@
-package com.fizzed.buildx;
+package com.fizzed.buildx.internal;
 
 import com.fizzed.jne.OperatingSystem;
 

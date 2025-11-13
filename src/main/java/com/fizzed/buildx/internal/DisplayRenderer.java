@@ -1,7 +1,8 @@
-package com.fizzed.buildx;
+package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
+import com.fizzed.buildx.*;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -18,13 +19,14 @@ import java.util.List;
 import static com.fizzed.blaze.Systems.exec;
 import static com.fizzed.blaze.util.TerminalHelper.*;
 import static com.fizzed.blaze.util.TerminalHelper.resetCode;
+import static com.fizzed.buildx.internal.Utils.*;
 import static java.util.Optional.ofNullable;
 
-public class BuildxDisplayRenderer {
+public class DisplayRenderer {
 
     static final DecimalFormat SECS_FMT = new DecimalFormat("0.00");
 
-    static public void writeResults(List<BuildxJob> jobs, Path file) throws IOException {
+    static public void writeResults(List<Job> jobs, Path file) throws IOException {
         // get the current git hash: git log -1 --format=%H
         final CaptureOutput captureOutput = Streamables.captureOutput(false);
         exec("git", "log", "-1", "--format=%H")
@@ -42,12 +44,11 @@ public class BuildxDisplayRenderer {
         sb.append("Commit: ").append(gitCommitHash).append("\n");
         sb.append("Date: ").append(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).append("\n");
         sb.append("\n");
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             final Target target = job.getTarget();
-            final Result result = job.getResult();
-            String appendMessage = result.getStatus().name().toLowerCase();
-            if (result.getStatus() != ExecuteStatus.SUCCESS && result.getMessage() != null) {
-                appendMessage += ": " + result.getMessage();
+            String appendMessage = stringifyLowerCase(job.getStatus(), "unknown");
+            if (job.getStatus() != JobStatus.SUCCESS && job.getMessage() != null) {
+                appendMessage += ": " + job.getMessage();
             }
             sb.append(fixedWidthLeft(target.toString(), 75, '.')).append(' ').append(appendMessage).append("\n");
         }
@@ -57,12 +58,15 @@ public class BuildxDisplayRenderer {
         sb.append("Details =>\n");
         sb.append("\n");
 
-        for (BuildxJob job : jobs) {
-            for (String line : renderJobLines(job.getId(), job.getTarget(), job.getHostInfo())) {
+        for (Job job : jobs) {
+            for (String line : renderJobLines(job.getId(), job.getOutput().getFile(), job.getHost(), job.getTarget())) {
+                sb.append(line).append("\n");
+            }
+            for (String line : renderContainerLines(job.getContainer())) {
                 sb.append(line).append("\n");
             }
             sb.append("\n");
-            sb.append("  status: ").append(job.getResult().getStatus().name().toLowerCase()).append("\n");
+            sb.append("  status: ").append(stringifyLowerCase(job.getStatus(), "unknown")).append("\n");
             sb.append("\n");
         }
 
@@ -71,40 +75,69 @@ public class BuildxDisplayRenderer {
         Files.write(file, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    static public List<String> renderJobLines(int jobId, Target target, HostInfo hostInfo) {
+    static public List<String> renderJobLines(int jobId, Path logFile, HostImpl host, Target target) {
         List<String> lines = new ArrayList<>();
         lines.add("Job #" + jobId + " for " + target);
-        lines.add("  host: " + ofNullable(target.getHost()).orElse("<local>"));
-        lines.add("  containerImage: " + ofNullable(target.getContainerImage()).orElse("<none>"));
-        lines.add("  tags: " + ofNullable(target.getTags()).map(Object::toString).orElse("<none>"));
-        if (target.getData() != null) {
+        if (logFile != null) {
+            lines.add("  log file: " + logFile);
+        }
+        lines.add("  host: " + host);
+        if (host.getInfo() != null) {
+            lines.add("    os: " + stringifyLowerCase(host.getInfo().getOs(), "<unknown>"));
+            lines.add("    arch: " + stringifyLowerCase(host.getInfo().getArch(), "<unknown>"));
+            lines.add("    name: " + stringify(host.getInfo().getDisplayName(), "<unknown>"));
+            if (host.getInfo().getLibC() != null) {
+                lines.add("    libc: " + stringifyLowerCase(host.getInfo().getLibC(), "<unknown>")
+                    + " " + stringifyLowerCase(host.getInfo().getLibcVersion(), "<unknown>"));
+            }
+            lines.add("    uname: " + host.getInfo().getUname());
+            lines.add("    podman: " + stringify(host.getInfo().getPodmanVersion(), "<not installed>"));
+            // TODO: we don't even support docker
+            //lines.add("    docker: " + host.getInfo().getDockerVersion());
+            /*lines.add("    fileSeparator: " + host.getInfo().getFileSeparator());
+            lines.add("    homeDir: " + host.getInfo().getHomeDir());
+            lines.add("    remoteDir: " + host.getAbsoluteDir());*/
+        }
+        lines.add("  tags: " + stringify(target.getTags(), "<none>"));
+        if (target.getData() != null && !target.getData().isEmpty()) {
             lines.add("  data:");
             target.getData().forEach((k,v) -> {
                 lines.add("    " + k + "=" + v);
             });
+        } else {
+            lines.add("  data: <none>");
         }
-        if (hostInfo != null) {
-            lines.add("  hostInfo:");
-            lines.add("    os: " + hostInfo.getOs());
-            lines.add("    arch: " + hostInfo.getArch());
-            lines.add("    uname: " + hostInfo.getUname());
+
+        return lines;
+    }
+
+    static public List<String> renderContainerLines(ContainerImpl container) {
+        List<String> lines = new ArrayList<>();
+        lines.add("  container: " + ofNullable(container).map(ContainerImpl::getImage).orElse("<none>"));
+        if (container != null) {
+            lines.add("    os: " + stringifyLowerCase(container.getInfo().getOs(), "<unknown>"));
+            lines.add("    arch: " + stringifyLowerCase(container.getInfo().getArch(), "<unknown>"));
+            lines.add("    name: " + stringifyLowerCase(container.getInfo().getDisplayName(), "<unknown>"));
+            if (container.getInfo().getLibC() != null) {
+                lines.add("    libc: " + stringifyLowerCase(container.getInfo().getLibC(), "<unknown>")
+                    + " " + stringifyLowerCase(container.getInfo().getLibcVersion(), "<unknown>"));
+            }
         }
         return lines;
     }
 
-    static public void logResults(Logger log, List<BuildxJob> jobs) {
+    static public void logResults(Logger log, List<Job> jobs) {
         log.info("");
         log.info(fixedWidthCenter("Buildx Report", 100, '='));
         log.info("");
 
-        for (BuildxJob job : jobs) {
+        for (Job job : jobs) {
             final Target target = job.getTarget();
-            final Result result = job.getResult();
-            final long durationMillis = result.getEndMillis() - result.getStartMillis();
+            final long durationMillis = job.getTimer().elapsed();
             final double durationSecs = (double)durationMillis/1000d;
 
             String statusMessage = "";
-            switch (result.getStatus()) {
+            switch (job.getStatus()) {
                 case SUCCESS:
                     statusMessage = greenCode() + "[success]" + resetCode();
                     break;
@@ -130,10 +163,10 @@ public class BuildxDisplayRenderer {
 
         log.info("");
 
-        for (BuildxJob job : jobs) {
-            if (job.getResult().getStatus() == ExecuteStatus.FAILED) {
-                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutputFile());
-                log.error("  error => {}", job.getResult().getMessage());
+        for (Job job : jobs) {
+            if (job.getStatus() == JobStatus.FAILED) {
+                log.error("{} as job #{} failed with log @ {}", job.getTarget(), job.getId(), job.getOutput().getFile());
+                log.error("  error => {}", job.getMessage());
                 log.info("");
             }
         }

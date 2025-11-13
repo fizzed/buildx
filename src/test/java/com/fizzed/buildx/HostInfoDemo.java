@@ -1,5 +1,7 @@
 package com.fizzed.buildx;
 
+import com.fizzed.blaze.logging.LogLevel;
+import com.fizzed.blaze.logging.LoggerConfig;
 import com.fizzed.blaze.ssh.SshSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +12,9 @@ class HostInfoDemo {
     static private final Logger log = LoggerFactory.getLogger(HostInfoDemo.class);
 
     static public void main(String[] args) throws Exception {
-        final String host = "bmh-build-x64-win11-1";
+        LoggerConfig.setDefaultLogLevel(LogLevel.TRACE);
+
+//        final String host = "bmh-build-x64-win11-1";
 //        final String host = "bmh-build-arm64-win11-2";
 //        final String host = "bmh-build-x64-macos11-1";
 //        final String host = "bmh-build-arm64-macos12-1";
@@ -23,6 +27,7 @@ class HostInfoDemo {
 //        final String host = "bmh-dev-x64-fedora43-1";
 //        final String host = "bmh-build-x64-alpine315-1";
 //        final String host = "bmh-mini-2";
+        final String host = "bmh-build-armhf-rpios-1";          // arm32
 
         final HostInfo localHostInfo = HostInfo.probeLocal();
         log.info("uname: {}", localHostInfo.getUname());

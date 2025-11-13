@@ -63,29 +63,18 @@ public class blaze {
         }
 
         // ubuntu22+jdk21 architectures (was an old riscv64 test image we used)
-        for (String arch : asList("riscv64")) {
-            containers.add(new Container()
-                .setDockerFile(dockerFileLinux)
-                .setFromImage("docker.io/"+arch+"/ubuntu:22.04")
-                .setJavaVersion(21)
-                .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu22-jdk21")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu22-jdk21")
-            );
+        for (String arch : asList("arm64v8", "riscv64")) {
+            for (Integer version : asList(25, 21)) {
+                containers.add(new Container()
+                    .setDockerFile(dockerFileLinux)
+                    .setFromImage("docker.io/" + arch + "/ubuntu:22.04")
+                    .setJavaVersion(version)
+                    .setJavaArch(canonicalArch(arch))
+                    .setImage("docker.io/" + "fizzed/buildx:" + arch + "-ubuntu22-jdk21")
+                    .setAltImage("docker.io/" + "fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk21")
+                );
+            }
         }
-
-        // something busted with debian 11, punting on testing this
-        /*// debian11+jdk11 architectures
-        for (String arch : asList("arm32v5")) {
-            containers.add(new Container()
-                .setDockerFile(dockerFileLinux)
-                .setFromImage("docker.io/"+arch+"/debian:12")
-                .setJavaVersion(11)
-                .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-debian12-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-debian12-jdk11")
-            );
-        }*/
 
         // ubuntu22 + all java version on x64
         for (String arch : asList("amd64")) {
@@ -100,6 +89,19 @@ public class blaze {
                 );
             }
         }
+
+        // something busted with debian 11, punting on testing this
+        /*// debian11+jdk11 architectures
+        for (String arch : asList("arm32v5")) {
+            containers.add(new Container()
+                .setDockerFile(dockerFileLinux)
+                .setFromImage("docker.io/"+arch+"/debian:12")
+                .setJavaVersion(11)
+                .setJavaArch(canonicalArch(arch))
+                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-debian12-jdk11")
+                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-debian12-jdk11")
+            );
+        }*/
 
         // alpine3.11 architectures
         for (String arch : asList("amd64", "arm64v8")) {

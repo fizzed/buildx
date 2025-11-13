@@ -8,33 +8,32 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.ExecSession;
 import com.fizzed.blaze.util.CaptureOutput;
 import com.fizzed.blaze.util.Streamables;
-import com.fizzed.jne.HardwareArchitecture;
-import com.fizzed.jne.NativeTarget;
-import com.fizzed.jne.OperatingSystem;
+import com.fizzed.blaze.util.Timer;
+import com.fizzed.buildx.internal.SystemExecutorSshSession;
+import com.fizzed.jne.*;
+import com.fizzed.jne.internal.SystemExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 
 public class HostInfo {
     static private final Logger log = LoggerFactory.getLogger(HostInfo.class);
 
-    private final String uname;
-    private final OperatingSystem os;
-    private final HardwareArchitecture arch;
+    private final PlatformInfo platformInfo;
     private final String currentDir;
     private final String homeDir;
     private final String fileSeparator;
     private final String podmanVersion;
     private final String dockerVersion;
 
-    public HostInfo(String uname, OperatingSystem os, HardwareArchitecture arch, String currentDir, String homeDir, String fileSeparator, String podmanVersion, String dockerVersion) {
-        this.uname = uname;
-        this.os = os;
-        this.arch = arch;
+    public HostInfo(PlatformInfo platformInfo, String currentDir, String homeDir, String fileSeparator, String podmanVersion, String dockerVersion) {
+        this.platformInfo = platformInfo;
         this.currentDir = currentDir;
         this.homeDir = homeDir;
         this.fileSeparator = fileSeparator;
@@ -43,15 +42,31 @@ public class HostInfo {
     }
 
     public String getUname() {
-        return uname;
+        return this.platformInfo.getUname();
     }
 
     public OperatingSystem getOs() {
-        return os;
+        return this.platformInfo.getOperatingSystem();
     }
 
     public HardwareArchitecture getArch() {
-        return arch;
+        return this.platformInfo.getHardwareArchitecture();
+    }
+
+    public String getDisplayName() {
+        return this.platformInfo.getDisplayName();
+    }
+
+    public SemanticVersion getVersion() {
+        return this.platformInfo.getVersion();
+    }
+
+    public LibC getLibC() {
+        return this.platformInfo.getLibC();
+    }
+
+    public SemanticVersion getLibcVersion() {
+        return this.platformInfo.getLibCVersion();
     }
 
     public String getCurrentDir() {
@@ -85,33 +100,36 @@ public class HostInfo {
     }
 
     static public HostInfo probeLocal() {
+        log.info("Probe host <local> for os/arch/etc...");
+        final Timer timer = new Timer();
+
         final LocalSession localSession = new LocalSession(Contexts.currentContext());
-        NativeTarget nativeTarget = NativeTarget.detect();
-        String uname;
-        try {
-            uname = uname(localSession);
-        } catch (Exception e) {
-            uname = System.getProperty("os.name") + " " +  System.getProperty("os.version") + " " + System.getProperty("os.arch");
-        }
+        final PlatformInfo platformInfo = PlatformInfo.detect(SystemExecutor.LOCAL, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
         String fileSeparator = File.separator;
         String currentDir = Paths.get(".").toAbsolutePath().normalize().toString();
         String homeDir = System.getProperty("user.home");
         String podmanVersion = podmanVersion(localSession);
         String dockerVersion = dockerVersion(localSession);
-        return new HostInfo(uname, nativeTarget.getOperatingSystem(), nativeTarget.getHardwareArchitecture(), currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
+
+        log.info("Probed host <local> for os/arch/etc (in {})", timer);
+
+        return new HostInfo(platformInfo, currentDir, homeDir, fileSeparator, podmanVersion, dockerVersion);
     }
 
     static public HostInfo probeRemote(SshSession sshSession) {
+        log.info("Probe host {} for os/arch/etc...", sshSession.uri().getHost());
+        final Timer timer = new Timer();
+
         String currentDir = null;
         String fileSeperator = null;
-        final String uname = uname(sshSession);
-        final NativeTarget nativeTarget = NativeTarget.detectFromText(uname);
-        final OperatingSystem os = nativeTarget.getOperatingSystem();
-        final HardwareArchitecture arch = nativeTarget.getHardwareArchitecture();
+
+        // create a "JNE" executor that leverages the blaze ssh session
+        final SystemExecutor systemExecutor = new SystemExecutorSshSession(sshSession);
+        final PlatformInfo platformInfo = PlatformInfo.detect(systemExecutor, PlatformInfo.Detect.VERSION, PlatformInfo.Detect.LIBC);
         String homeDir = null;
 
         // detect the current path & file separator
-        if (os == OperatingSystem.WINDOWS) {
+        if (platformInfo.getOperatingSystem() == OperatingSystem.WINDOWS) {
             fileSeperator = "\\";
 
             CaptureOutput cdOutput = Streamables.captureOutput(false);
@@ -134,7 +152,7 @@ public class HostInfo {
         }
 
         // detect the home directory
-        if (os == OperatingSystem.WINDOWS) {
+        if (platformInfo.getOperatingSystem() == OperatingSystem.WINDOWS) {
             CaptureOutput homeOutput = Streamables.captureOutput(false);
             sshExec(sshSession, "echo", "%USERPROFILE%")
                 .pipeOutput(homeOutput)
@@ -156,8 +174,12 @@ public class HostInfo {
         String podmanVersion = podmanVersion(sshSession);
         String dockerVersion = dockerVersion(sshSession);
 
-        return new HostInfo(uname, os, arch, currentDir, homeDir, fileSeperator, podmanVersion, dockerVersion);
+        log.info("Probed host {} for os/arch/etc (in {})", sshSession.uri().getHost(), timer);
+
+        return new HostInfo(platformInfo, currentDir, homeDir, fileSeperator, podmanVersion, dockerVersion);
     }
+
+    static private final Pattern VERSION_PATTERN = Pattern.compile(".*(\\d+\\.\\d+\\.\\d+).*");
 
     static private String podmanVersion(ExecSession execSession) {
         try {
@@ -168,10 +190,16 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            return podmanOutput.toString().trim().replace("podman version ", "");
+            // parse string for a version number of format X.X.X
+            String output = podmanOutput.toString().trim();
+            Matcher matcher = VERSION_PATTERN.matcher(output);
+            if (matcher.matches()) {
+                return matcher.group(1);
+            }
         } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            return null;
+            // not good, this didn't work either'
         }
+        return null;
     }
 
     static private String dockerVersion(ExecSession execSession) {
@@ -183,59 +211,16 @@ public class HostInfo {
                 .pipeErrorToOutput()
                 .run();
 
-            return dockerOutput.toString().trim();
-        } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            return null;
-        }
-    }
-
-    static private String uname(ExecSession execSession) {
-        try {
-            // try uname, if any error, we might be on windows
-            CaptureOutput unameOutput = Streamables.captureOutput(false);
-            int unameExitCode = execSession.newExec().command("uname").args("-a")
-                .pipeOutput(unameOutput)
-                .pipeErrorToOutput()
-                .exitValues(0, 1)        // could fail with 1 on windows
-                .run();
-
-            if (unameExitCode == 0) {
-                return unameOutput.toString().trim();
+            // parse string for a version number of format X.X.X
+            String output = dockerOutput.toString().trim();
+            Matcher matcher = VERSION_PATTERN.matcher(output);
+            if (matcher.matches()) {
+                return matcher.group(1);
             }
         } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            // we may be on windows
-            //log.info("", e);
+            // not good, this didn't work either'
         }
-
-        try {
-            // we may be on windows, let's try the "ver" command (which works in a "cmd.exe" session)
-            CaptureOutput verOutput = Streamables.captureOutput(false);
-            int verExitCode = execSession.newExec().command("ver")
-                .pipeOutput(verOutput)
-                .pipeErrorToOutput()
-                .exitValues(0, 1)
-                .run();
-
-            if (verExitCode == 0) {
-                String verOutputString = verOutput.toString().trim();
-
-                // let's get the processor architecture now
-                CaptureOutput archOutput = Streamables.captureOutput(false);
-                // note: we expect this to run and exit 0 or we throw an exception
-                execSession.newExec().command("echo").args("%PROCESSOR_ARCHITECTURE%")
-                    .pipeOutput(archOutput)
-                    .pipeErrorToOutput()
-                    .run();
-
-                String archOutputString = archOutput.toString().trim();
-                return verOutputString + " " + archOutputString;
-            }
-        } catch (ExecutableNotFoundException | UnexpectedExitValueException e) {
-            // not good, this didn't work either
-            //log.info("", e);
-        }
-
-        throw new IllegalStateException("Unable to determine 'uname' of system");
+        return null;
     }
 
 }
