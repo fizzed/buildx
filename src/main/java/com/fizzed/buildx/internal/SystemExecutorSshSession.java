@@ -4,10 +4,13 @@ import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.jne.internal.SystemExecutor;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.util.IntRange.intRange;
+import static java.util.Arrays.asList;
 
 public class SystemExecutorSshSession implements SystemExecutor {
 
@@ -28,10 +31,10 @@ public class SystemExecutorSshSession implements SystemExecutor {
 
     @Override
     public String execProcess(List<Integer> exitValues, String... command) throws Exception {
-        String firstCommand = command[0];
-        Object[] args = new Object[command.length - 1];
-        System.arraycopy(command, 1, args, 0, args.length);
-        return sshExec(this.sshSession, firstCommand, args)
+        final List<String> args = new ArrayList<>(asList(command));
+        final String firstCommand = args.remove(0);
+        return sshExec(this.sshSession, firstCommand)
+            .args(args)
             .exitValues(exitValues.toArray(new Integer[0]))
             .pipeErrorToOutput()
             .runCaptureOutput(false)
