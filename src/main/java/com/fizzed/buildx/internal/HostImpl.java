@@ -192,6 +192,7 @@ public class HostImpl implements Host {
 
         if (this.sshSession != null) {
             exec = sshExec(sshSession, this.sshShellExecScript(), exeOrNameOfExe)
+                .pty(true)          // if the ssh channel closes, this should bubble the SIGHUP signal to the process
                 .args(arguments)
                 .workingDir(this.remotePath(""));
         } else {
