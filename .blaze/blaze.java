@@ -27,103 +27,102 @@ public class blaze {
         List<Container> containers = new ArrayList<>();
 
         // ubuntu16+jdk11 architectures
-        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
+        for (final String arch : asList("amd64", "arm64v8", "arm32v7")) {
+            final int version = 11;
+            final String os = "ubuntu16";
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage("docker.io/"+arch+"/ubuntu:16.04")
-                .setJavaVersion(11)
+                .setJavaVersion(version)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu16-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu16-jdk11")
+                .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
             );
         }
 
         // ubuntu18+jdk11 architectures
-        for (String arch : asList("amd64", "arm64v8", "arm32v7")) {
+        for (final String arch : asList("amd64", "arm64v8", "arm32v7")) {
+            final int version = 11;
+            final String os = "ubuntu18";
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage("docker.io/"+arch+"/ubuntu:18.04")
-                .setJavaVersion(11)
+                .setJavaVersion(version)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu18-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu18-jdk11")
+                .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
             );
         }
 
         // ubuntu20+jdk11 architectures
-        for (String arch : asList("amd64", "arm64v8")) {
+        for (final String arch : asList("amd64", "arm64v8")) {
+            final int version = 11;
+            final String os = "ubuntu20";
             containers.add(new Container()
                 .setDockerFile(dockerFileLinux)
                 .setFromImage("docker.io/"+arch+"/ubuntu:20.04")
-                .setJavaVersion(11)
+                .setJavaVersion(version)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-ubuntu20-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-ubuntu20-jdk11")
+                .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
             );
         }
 
         // ubuntu22+jdk21 architectures (was an old riscv64 test image we used)
-        for (String arch : asList("arm64v8", "riscv64")) {
-            for (Integer version : asList(25, 21)) {
+        for (final String arch : asList("arm64v8", "riscv64")) {
+            for (final Integer version : asList(25, 21)) {
+                final String os = "ubuntu22";
                 containers.add(new Container()
                     .setDockerFile(dockerFileLinux)
-                    .setFromImage("docker.io/" + arch + "/ubuntu:22.04")
+                    .setFromImage("docker.io/"+arch+"/ubuntu:22.04")
                     .setJavaVersion(version)
                     .setJavaArch(canonicalArch(arch))
-                    .setImage("docker.io/" + "fizzed/buildx:" + arch + "-ubuntu22-jdk21")
-                    .setAltImage("docker.io/" + "fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk21")
+                    .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                    .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
                 );
             }
         }
 
         // ubuntu22 + all java version on x64
-        for (String arch : asList("amd64")) {
-            for (Integer version : asList(25, 21, 17, 11, 8)) {
+        for (final String arch : asList("amd64")) {
+            for (final Integer version : asList(25, 21, 17, 11, 8)) {
+                final String os = "ubuntu22";
                 containers.add(new Container()
                     .setDockerFile(dockerFileLinux)
-                    .setFromImage("docker.io/"+arch + "/ubuntu:22.04")
+                    .setFromImage("docker.io/"+arch+"/ubuntu:22.04")
                     .setJavaVersion(version)
                     .setJavaArch(canonicalArch(arch))
-                    .setImage("docker.io/"+"fizzed/buildx:" + arch + "-ubuntu22-jdk"+version)
-                    .setAltImage("docker.io/"+"fizzed/buildx:" + canonicalArch(arch) + "-ubuntu22-jdk"+version)
+                    .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                    .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
                 );
             }
         }
 
-        // something busted with debian 11, punting on testing this
-        /*// debian11+jdk11 architectures
-        for (String arch : asList("arm32v5")) {
-            containers.add(new Container()
-                .setDockerFile(dockerFileLinux)
-                .setFromImage("docker.io/"+arch+"/debian:12")
-                .setJavaVersion(11)
-                .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-debian12-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-debian12-jdk11")
-            );
-        }*/
-
         // alpine3.11 architectures
         for (String arch : asList("amd64", "arm64v8")) {
+            final int version = 11;
+            final String os = "alpine3.11";
             containers.add(new Container()
                 .setDockerFile(dockerFileLinuxMusl)
                 .setFromImage("docker.io/"+arch+"/alpine:3.11")
-                .setJavaVersion(11)
+                .setJavaVersion(version)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.11-jdk11")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.11-jdk11")
+                .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
             );
         }
 
         // alpine3.20 architectures
         for (String arch : asList("amd64", "arm64v8")) {            // zulu, liberica, etc. do not publish riscv musl builds yet
+            final int version = 21;
+            final String os = "alpine3.20";
             containers.add(new Container()
                 .setDockerFile(dockerFileLinuxMusl)
                 .setFromImage("docker.io/"+arch+"/alpine:3.20")
-                .setJavaVersion(21)
+                .setJavaVersion(version)
                 .setJavaArch(canonicalArch(arch))
-                .setImage("docker.io/"+"fizzed/buildx:"+arch+"-alpine3.20-jdk21")
-                .setAltImage("docker.io/"+"fizzed/buildx:"+canonicalArch(arch)+"-alpine3.20-jdk21")
+                .setImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + arch)
+                .setAltImage("docker.io/" + "fizzed/buildx:" + os + "-jdk" + version + "-" + canonicalArch(arch))
             );
         }
 
@@ -292,7 +291,7 @@ public class blaze {
 
     @Task(order=54)
     public void readme_markdown() throws Exception {
-        final List<Container> sortedJavaContainers = this.resolveJavaContainers()
+        /*final List<Container> sortedJavaContainers = this.resolveJavaContainers()
             .stream()
             .sorted((a,b) -> {
                 int c = a.getJavaArch().compareTo(b.getJavaArch());
@@ -304,6 +303,13 @@ public class blaze {
                     }
                 }
                 return c;
+            })
+            .collect(toList());*/
+
+        final List<Container> sortedJavaContainers = this.resolveJavaContainers()
+            .stream()
+            .sorted((a,b) -> {
+                return a.getImage().compareTo(b.getImage());
             })
             .collect(toList());
 

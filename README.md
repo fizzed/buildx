@@ -50,24 +50,27 @@ These containers contain a single JDK version that is set as the default, along 
 
 | Container | Architecture | JDK |
 | --------- | ------------ | --- |
-| docker.io/fizzed/buildx:arm64-alpine3.20-jdk21 | arm64 | JDK 21 |
-| docker.io/fizzed/buildx:arm64-alpine3.11-jdk11 | arm64 | JDK 11 |
-| docker.io/fizzed/buildx:arm64-ubuntu16-jdk11 | arm64 | JDK 11 |
-| docker.io/fizzed/buildx:arm64-ubuntu18-jdk11 | arm64 | JDK 11 |
-| docker.io/fizzed/buildx:arm64-ubuntu20-jdk11 | arm64 | JDK 11 |
-| docker.io/fizzed/buildx:armhf-ubuntu16-jdk11 | armhf | JDK 11 |
-| docker.io/fizzed/buildx:armhf-ubuntu18-jdk11 | armhf | JDK 11 |
-| docker.io/fizzed/buildx:riscv64-ubuntu22-jdk21 | riscv64 | JDK 21 |
-| docker.io/fizzed/buildx:x64-ubuntu22-jdk25 | x64 | JDK 25 |
-| docker.io/fizzed/buildx:x64-alpine3.20-jdk21 | x64 | JDK 21 |
-| docker.io/fizzed/buildx:x64-ubuntu22-jdk21 | x64 | JDK 21 |
-| docker.io/fizzed/buildx:x64-ubuntu22-jdk17 | x64 | JDK 17 |
-| docker.io/fizzed/buildx:x64-alpine3.11-jdk11 | x64 | JDK 11 |
-| docker.io/fizzed/buildx:x64-ubuntu16-jdk11 | x64 | JDK 11 |
-| docker.io/fizzed/buildx:x64-ubuntu18-jdk11 | x64 | JDK 11 |
-| docker.io/fizzed/buildx:x64-ubuntu20-jdk11 | x64 | JDK 11 |
-| docker.io/fizzed/buildx:x64-ubuntu22-jdk11 | x64 | JDK 11 |
-| docker.io/fizzed/buildx:x64-ubuntu22-jdk8 | x64 | JDK 8 |
+| docker.io/fizzed/buildx:alpine3.11-jdk11-x64 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:alpine3.11-jdk11-arm64 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:alpine3.20-jdk21-x64 | x64 | JDK 21 |
+| docker.io/fizzed/buildx:alpine3.20-jdk21-arm64 | arm64 | JDK 21 |
+| docker.io/fizzed/buildx:ubuntu16-jdk11-x64 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu16-jdk11-armhf | armhf | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu16-jdk11-arm64 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu18-jdk11-x64 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu18-jdk11-armhf | armhf | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu18-jdk11-arm64 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu20-jdk11-x64 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu20-jdk11-arm64 | arm64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu22-jdk11-x64 | x64 | JDK 11 |
+| docker.io/fizzed/buildx:ubuntu22-jdk17-x64 | x64 | JDK 17 |
+| docker.io/fizzed/buildx:ubuntu22-jdk21-x64 | x64 | JDK 21 |
+| docker.io/fizzed/buildx:ubuntu22-jdk21-arm64 | arm64 | JDK 21 |
+| docker.io/fizzed/buildx:ubuntu22-jdk21-riscv64 | riscv64 | JDK 21 |
+| docker.io/fizzed/buildx:ubuntu22-jdk25-x64 | x64 | JDK 25 |
+| docker.io/fizzed/buildx:ubuntu22-jdk25-arm64 | arm64 | JDK 25 |
+| docker.io/fizzed/buildx:ubuntu22-jdk25-riscv64 | riscv64 | JDK 25 |
+| docker.io/fizzed/buildx:ubuntu22-jdk8-x64 | x64 | JDK 8 |
 
 
 | Container | Description |
