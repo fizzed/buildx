@@ -20,8 +20,8 @@
     
     <properties>
         <java.version>1.8</java.version>
-        <blaze.version>2.5.0</blaze.version>
-        <jne.version>4.8.0</jne.version>
+        <blaze.version>2.6.1</blaze.version>
+        <jne.version>4.10.0</jne.version>
     </properties>
     
     <dependencies>
