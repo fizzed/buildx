@@ -3,9 +3,11 @@ package com.fizzed.buildx.internal;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.core.Action;
+import com.fizzed.blaze.jsync.JsyncMode;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.blaze.vfs.VirtualVolume;
 import com.fizzed.buildx.Host;
 import com.fizzed.buildx.HostInfo;
 import com.fizzed.buildx.JobOutput;
@@ -17,6 +19,9 @@ import java.nio.file.Paths;
 import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
+import static com.fizzed.blaze.jsync.Jsyncs.jsync;
+import static com.fizzed.blaze.vfs.LocalVirtualVolume.localVolume;
+import static com.fizzed.blaze.vfs.SftpVirtualVolume.sftpVolume;
 
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
@@ -98,8 +103,9 @@ public class HostImpl implements Host {
     // helpers
 
     public String relativePath(String path) {
+        return this.relativeDir.resolve(path).toString();
         // we need to help retain trailing "/"'s on the path if they exist since those matter to rsync
-        return this.relativeDir.resolve(".") + "/" + path;
+        //return this.relativeDir.resolve(".") + "/" + path;
         //return this.relativeDir.resolve(".").resolve(path).normalize().toString();
     }
 
@@ -212,6 +218,28 @@ public class HostImpl implements Host {
     }
 
     @Override
+    public Action<?,?> rsync(String sourcePath, String destPath) {
+        final VirtualVolume target = localVolume(Paths.get(this.relativePath(destPath)));
+        final VirtualVolume source;
+
+        // is remote?
+        if (this.sshSession != null) {
+            // rsync the project target/output to the target project
+//            src = this.host + ":" + this.remotePath(sourcePath, false);
+            source = sftpVolume(this.sshSession, this.remotePath(sourcePath, false));
+        } else {
+            // local execute
+//            src = this.relativePath(sourcePath);
+            source = localVolume(Paths.get(this.relativePath(sourcePath)));
+        }
+
+        return jsync(source, target, JsyncMode.MERGE)
+            .verbose()
+            .progress()
+            .force();
+    }
+
+    /*@Override
     public Exec rsync(String sourcePath, String destPath) {
         String src = null;
         String dest = this.relativePath(destPath);
@@ -242,6 +270,6 @@ public class HostImpl implements Host {
         }
 
         return exec;
-    }
+    }*/
 
 }

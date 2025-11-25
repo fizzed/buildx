@@ -1,6 +1,7 @@
 package com.fizzed.buildx.internal;
 
 import com.fizzed.blaze.Contexts;
+import com.fizzed.blaze.core.Action;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.buildx.Project;
 import com.fizzed.buildx.SkipException;
@@ -26,7 +27,7 @@ public class ProjectImpl implements Project {
     }
 
     @Override
-    public Exec rsync(String sourcePath, String destPath) {
+    public Action<?,?> rsync(String sourcePath, String destPath) {
         return this.host.rsync(sourcePath, destPath);
     }
 

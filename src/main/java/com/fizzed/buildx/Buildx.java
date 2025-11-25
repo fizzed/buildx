@@ -30,6 +30,7 @@ import static com.fizzed.blaze.vfs.LocalVirtualVolume.localVolume;
 import static com.fizzed.blaze.vfs.SftpVirtualVolume.sftpVolume;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 public class Buildx {
 
@@ -328,23 +329,17 @@ public class Buildx {
 
                     final VirtualVolume syncSource = localVolume(absProjectDir);
                     final VirtualVolume syncTarget = sftpVolume(sshSession, remoteProjectDir);
+                    final List<String> excludes = this.ignorePaths.stream()
+                        .map(absProjectDir::resolve)
+                        .map(Path::toString)
+                        .collect(toList());
 
-                    final Jsync jsync = jsync(syncSource, syncTarget, JsyncMode.MERGE)
-                        //.debug()
-                        .verbose()
-                        .progress()
+                    jsync(syncSource, syncTarget, JsyncMode.MERGE)
+                        .verbose().progress()
                         .parents()
-                        .force()
-                        .delete();
-
-                    // passthru excludes
-                    if (this.ignorePaths != null) {
-                        for (String ignoreDir : this.ignorePaths) {
-                            jsync.exclude(absProjectDir.resolve(ignoreDir).toString());
-                        }
-                    }
-
-                    jsync.run();
+                        .force().delete()
+                        .excludes(excludes)
+                        .run();
 
                     /*
                     // we may need to make the path to the remote project dir exists before we can rsync it
@@ -469,7 +464,7 @@ public class Buildx {
             .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
             .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
             .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     private void createBuildxDirectory(Path projectDir) throws IOException {

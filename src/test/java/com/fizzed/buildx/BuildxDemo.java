@@ -86,6 +86,8 @@ public class BuildxDemo {
 
                 /*project.exec("java", "-version")
                     .run();*/
+
+                project.rsync("README.md", "target/README.md").run();
             });
     }
 

@@ -25,6 +25,6 @@ public interface Host {
 
     Exec exec(String exeOrNameOfExe, Object... arguments);
 
-    Exec rsync(String sourcePath, String destPath);
+    Action<?,?> rsync(String sourcePath, String destPath);
 
 }
