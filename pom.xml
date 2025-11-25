@@ -20,7 +20,7 @@
     
     <properties>
         <java.version>1.8</java.version>
-        <blaze.version>2.6.1</blaze.version>
+        <blaze.version>2.6.2-SNAPSHOT</blaze.version>
         <jne.version>4.10.0</jne.version>
     </properties>
     
@@ -37,7 +37,12 @@
             <groupId>com.fizzed</groupId>
             <artifactId>blaze-ssh</artifactId>
             <version>${blaze.version}</version>
-            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fizzed</groupId>
+            <artifactId>blaze-jsync</artifactId>
+            <version>${blaze.version}</version>
         </dependency>
 
         <dependency>

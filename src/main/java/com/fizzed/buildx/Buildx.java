@@ -1,8 +1,11 @@
 package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
+import com.fizzed.blaze.jsync.Jsync;
+import com.fizzed.blaze.jsync.JsyncMode;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
+import com.fizzed.blaze.vfs.VirtualVolume;
 import com.fizzed.buildx.internal.*;
 import com.fizzed.jne.PlatformInfo;
 import org.apache.commons.io.IOUtils;
@@ -20,8 +23,11 @@ import java.util.stream.Collectors;
 import static com.fizzed.blaze.SecureShells.sshConnect;
 import static com.fizzed.blaze.SecureShells.sshExec;
 import static com.fizzed.blaze.Systems.exec;
+import static com.fizzed.blaze.jsync.Jsyncs.jsync;
 import static com.fizzed.blaze.util.Streamables.nullOutput;
 import static com.fizzed.blaze.util.TerminalHelper.*;
+import static com.fizzed.blaze.vfs.LocalVirtualVolume.localVolume;
+import static com.fizzed.blaze.vfs.SftpVirtualVolume.sftpVolume;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
 
@@ -275,7 +281,8 @@ public class Buildx {
                 if (target.getHost() != null) {
                     sshSession = sshConnect("ssh://" + target.getHost()).run();
                     hostInfo = HostInfo.probeRemote(sshSession);
-                    remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+//                    remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+                    remoteProjectDir = "remote-build/" + absProjectDir.getFileName().toString();
                 } else {
                     sshSession = null;
                     remoteProjectDir = null;
@@ -319,6 +326,27 @@ public class Buildx {
                 if (!hostsSynced.contains(host)) {
                     log.info("Syncing project to {}:{}", host, remoteProjectDir);
 
+                    final VirtualVolume syncSource = localVolume(absProjectDir);
+                    final VirtualVolume syncTarget = sftpVolume(sshSession, remoteProjectDir);
+
+                    final Jsync jsync = jsync(syncSource, syncTarget, JsyncMode.MERGE)
+                        //.debug()
+                        .verbose()
+                        .progress()
+                        .parents()
+                        .force()
+                        .delete();
+
+                    // passthru excludes
+                    if (this.ignorePaths != null) {
+                        for (String ignoreDir : this.ignorePaths) {
+                            jsync.exclude(absProjectDir.resolve(ignoreDir).toString());
+                        }
+                    }
+
+                    jsync.run();
+
+                    /*
                     // we may need to make the path to the remote project dir exists before we can rsync it
                     sshExec(sshSession, "mkdir", "remote-build")
                         .exitValues(0, 1)
@@ -358,7 +386,7 @@ public class Buildx {
                         .args(rsyncArgs.toArray())
                         .pipeOutput(new CloseGuardedOutputStream(output.getConsoleOutput()))       // protect against being closed by Exec
                         .pipeErrorToOutput()
-                        .run();
+                        .run();*/
 
                     // this host is done
                     hostsSynced.add(host);
