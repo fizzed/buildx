@@ -198,7 +198,10 @@ public class HostImpl implements Host {
             exec = sshExec(sshSession, this.sshShellExecScript(), exeOrNameOfExe)
                 .pty(true)          // if the ssh channel closes, this should bubble the SIGHUP signal to the process
                 .args(arguments)
-                .workingDir(this.remotePath(""));
+                // ssh does not support working dir, the ssh host-exec script will change working directory for us
+                // to the project root directory
+                //.workingDir(this.remotePath(""))
+                ;
         } else {
             exec = Systems.exec(exeOrNameOfExe)
                 .args(arguments)
