@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>buildx</artifactId>
     <packaging>jar</packaging>
-    <version>3.3.1-SNAPSHOT</version>
+    <version>3.3.1</version>
     <name>buildx</name>
   
     <parent>
@@ -15,7 +15,7 @@
     <scm>
         <url>https://github.com/fizzed/blaze-buildx</url>
         <connection>scm:git:git@github.com:fizzed/blaze-buildx.git</connection>
-      <tag>HEAD</tag>
+      <tag>v3.3.1</tag>
   </scm>
     
     <properties>
