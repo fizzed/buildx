@@ -2,9 +2,10 @@ package com.fizzed.buildx;
 
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.ssh.SshSession;
-import com.fizzed.blaze.util.CloseGuardedOutputStream;
 import com.fizzed.buildx.internal.*;
-import com.fizzed.jne.PlatformInfo;
+import com.fizzed.jsync.engine.JsyncMode;
+import com.fizzed.jsync.vfs.VirtualVolume;
+import com.fizzed.jsync.vfs.util.Checksums;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
@@ -18,12 +19,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.fizzed.blaze.SecureShells.sshConnect;
-import static com.fizzed.blaze.SecureShells.sshExec;
-import static com.fizzed.blaze.Systems.exec;
-import static com.fizzed.blaze.util.Streamables.nullOutput;
+import static com.fizzed.blaze.jsync.Jsyncs.*;
 import static com.fizzed.blaze.util.TerminalHelper.*;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 public class Buildx {
 
@@ -275,7 +275,8 @@ public class Buildx {
                 if (target.getHost() != null) {
                     sshSession = sshConnect("ssh://" + target.getHost()).run();
                     hostInfo = HostInfo.probeRemote(sshSession);
-                    remoteProjectDir = hostInfo.getCurrentDir() + hostInfo.getFileSeparator() + "remote-build" + hostInfo.getFileSeparator() + absProjectDir.getFileName().toString();
+                    // always relative to home directory of target (which is safest choice when using ssh/sftp, also works on windows)
+                    remoteProjectDir = "remote-build/" + absProjectDir.getFileName().toString();
                 } else {
                     sshSession = null;
                     remoteProjectDir = null;
@@ -319,45 +320,18 @@ public class Buildx {
                 if (!hostsSynced.contains(host)) {
                     log.info("Syncing project to {}:{}", host, remoteProjectDir);
 
-                    // we may need to make the path to the remote project dir exists before we can rsync it
-                    sshExec(sshSession, "mkdir", "remote-build")
-                        .exitValues(0, 1)
-                        .pipeOutput(nullOutput())
-                        .pipeErrorToOutput()
-                        .run();
+                    final List<String> excludes = this.ignorePaths.stream()
+                        .map(absProjectDir::resolve)
+                        .map(Path::toString)
+                        .collect(toList());
 
-                    sshExec(sshSession, "mkdir", "remote-build" + host.getInfo().getFileSeparator() + absProjectDir.getFileName())
-                        .exitValues(0, 1)
-                        .pipeOutput(nullOutput())
-                        .pipeErrorToOutput()
-                        .run();
-
-                    log.info("Rsync project to remote host...");
-
-                    // sync our project directory to the remote host
-                    String sshHost = target.getHost();
-
-                    // we need our from & to paths (which may need adjusted if we're on windows)
-                    String rsyncFromPath = RsyncHelper.adjustPath(PlatformInfo.detectOperatingSystem(), absProjectDir + "/");
-                    String rsyncToPath = RsyncHelper.adjustPath(host.getInfo().getOs(), remoteProjectDir + "/");
-
-                    // build list of rsync arguments
-                    List<String> rsyncArgs = new ArrayList<>();
-                    rsyncArgs.addAll(asList("-vr", "--delete", "--progress"));
-
-                    if (this.ignorePaths != null) {
-                        for (String ignoreDir : this.ignorePaths) {
-                            rsyncArgs.add("--exclude=" + ignoreDir);
-                        }
-                    }
-
-                    rsyncArgs.add(rsyncFromPath);
-                    rsyncArgs.add(sshHost + ":" + rsyncToPath);
-
-                    exec("rsync")
-                        .args(rsyncArgs.toArray())
-                        .pipeOutput(new CloseGuardedOutputStream(output.getConsoleOutput()))       // protect against being closed by Exec
-                        .pipeErrorToOutput()
+                    jsync(localVolume(absProjectDir), sftpVolume(sshSession, remoteProjectDir), JsyncMode.MERGE)
+                        .verbose()
+                        .progress()
+                        .parents()
+                        .force()
+                        .delete()
+                        .excludes(excludes)
                         .run();
 
                     // this host is done
@@ -441,7 +415,7 @@ public class Buildx {
             .filter(v -> this.tags == null || (v.getTags() != null && v.getTags().containsAll(this.tags)))
             .filter(v -> descriptionsFilter == null || (v.getDescription() != null && v.getDescription().contains(descriptionsFilter)))
             .filter(v -> this.filters.stream().allMatch(a -> a.test(v)))
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     private void createBuildxDirectory(Path projectDir) throws IOException {
@@ -450,15 +424,38 @@ public class Buildx {
         // copy resources into it
         for (String name : asList("host-exec.sh", "host-exec.bat", "container-exec.sh")) {
             final String resourceName = "/com/fizzed/buildx/"+name;
-            try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
-                if (input == null) {
-                    throw new IOException("Resource " + resourceName + " not found");
+            // we need to test if the files are the same
+            final Path targetFile = buildxDir.resolve(name);
+            if (this.isResourceModifiedWithFile(resourceName, targetFile)) {
+                try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
+                    Files.copy(input, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                    targetFile.toFile().setExecutable(true);
                 }
-                Path file = buildxDir.resolve(name);
-                Files.copy(input, file, StandardCopyOption.REPLACE_EXISTING);
-                file.toFile().setExecutable(true);
             }
         }
+    }
+
+    private boolean isResourceModifiedWithFile(String resourceName, Path file) throws IOException {
+        if (Files.notExists(file)) {
+            return true;
+        }
+
+        // checksum resource
+        final String resourceHash;
+        try (InputStream input = Buildx.class.getResourceAsStream(resourceName)) {
+            if (input == null) {
+                throw new IOException("Resource " + resourceName + " not found");
+            }
+            resourceHash = Checksums.hash("MD5", input);
+        }
+
+        // checksum file
+        final String fileHash;
+        try (InputStream input = Files.newInputStream(file)) {
+            fileHash = Checksums.hash("MD5", input);
+        }
+
+        return !resourceHash.equals(fileHash);
     }
 
     private Set<String> buildFilter(String value) {

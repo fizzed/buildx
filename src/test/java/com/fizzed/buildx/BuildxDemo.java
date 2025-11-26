@@ -22,8 +22,8 @@ public class BuildxDemo {
 //            new Target("linux-x64-container").setContainerImage("docker.io/azul/zulu-openjdk-alpine:21-latest")
 //
 //            new Target("linux-x64-local")
-            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
-//            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
+//            new Target("linux-x64-local-container").setContainerImage("docker.io/eclipse-temurin:21-jdk")
+            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
 //            new Target("linux-x64-host").setHost("bmh-dev-x64-fedora43-1")
 //            new Target("linux-x64-host-container").setHost("bmh-dev-x64-fedora43-1").setContainerImage("docker.io/eclipse-temurin:21-jdk")
@@ -80,12 +80,16 @@ public class BuildxDemo {
 
 //                project.exec("mvn", "--version").run();
 
+                // test running something on the remote side
                 project.exec("java", "-jar", "blaze.jar", "-x", "--list").run();
 
                 //project.exec("mvn", "compile").run();
 
                 /*project.exec("java", "-version")
                     .run();*/
+
+                // test syncing back to project
+                project.rsync("README.md", "target/README.md").run();
             });
     }
 

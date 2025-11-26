@@ -10,6 +10,8 @@ import com.fizzed.buildx.Host;
 import com.fizzed.buildx.HostInfo;
 import com.fizzed.buildx.JobOutput;
 import com.fizzed.jne.OperatingSystem;
+import com.fizzed.jsync.engine.JsyncMode;
+import com.fizzed.jsync.vfs.VirtualVolume;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -17,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
+import static com.fizzed.blaze.jsync.Jsyncs.*;
 
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
@@ -98,8 +101,9 @@ public class HostImpl implements Host {
     // helpers
 
     public String relativePath(String path) {
+        return this.relativeDir.resolve(path).toString();
         // we need to help retain trailing "/"'s on the path if they exist since those matter to rsync
-        return this.relativeDir.resolve(".") + "/" + path;
+        //return this.relativeDir.resolve(".") + "/" + path;
         //return this.relativeDir.resolve(".").resolve(path).normalize().toString();
     }
 
@@ -212,36 +216,25 @@ public class HostImpl implements Host {
     }
 
     @Override
-    public Exec rsync(String sourcePath, String destPath) {
-        String src = null;
-        String dest = this.relativePath(destPath);
+    public Action<?,?> rsync(String sourcePath, String destPath) {
+        final VirtualVolume target = localVolume(Paths.get(this.relativePath(destPath)));
+        final VirtualVolume source;
 
         // is remote?
         if (this.sshSession != null) {
             // rsync the project target/output to the target project
-            src = this.host + ":" + this.remotePath(sourcePath, false);
+//            src = this.host + ":" + this.remotePath(sourcePath, false);
+            source = sftpVolume(this.sshSession, this.remotePath(sourcePath, false));
         } else {
             // local execute
-            src = this.relativePath(sourcePath);
+//            src = this.relativePath(sourcePath);
+            source = localVolume(Paths.get(this.relativePath(sourcePath)));
         }
 
-        // on windows, we need to fix path to match how "cygwin" does it
-        if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            src = src.replace("C:\\", "/cygdrive/c/");
-        }
-
-        log.debug("Rsyncing {} -> {}", src, dest);
-
-        // -a or -t flags can sometimes cause unexpected file permissions issues
-        Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
-
-        if (this.output != null) {
-            // protect against being closed by Exec
-            exec.pipeOutput(new CloseGuardedOutputStream(this.output.getConsoleOutput()));
-            exec.pipeErrorToOutput();
-        }
-
-        return exec;
+        return jsync(source, target, JsyncMode.MERGE)
+            .verbose()
+            .progress()
+            .force();
     }
 
 }
