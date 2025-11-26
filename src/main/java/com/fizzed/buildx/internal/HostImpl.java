@@ -3,15 +3,15 @@ package com.fizzed.buildx.internal;
 import com.fizzed.blaze.Contexts;
 import com.fizzed.blaze.Systems;
 import com.fizzed.blaze.core.Action;
-import com.fizzed.blaze.jsync.JsyncMode;
 import com.fizzed.blaze.ssh.SshSession;
 import com.fizzed.blaze.system.Exec;
 import com.fizzed.blaze.util.CloseGuardedOutputStream;
-import com.fizzed.blaze.vfs.VirtualVolume;
 import com.fizzed.buildx.Host;
 import com.fizzed.buildx.HostInfo;
 import com.fizzed.buildx.JobOutput;
 import com.fizzed.jne.OperatingSystem;
+import com.fizzed.jsync.engine.JsyncMode;
+import com.fizzed.jsync.vfs.VirtualVolume;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -19,9 +19,7 @@ import java.nio.file.Paths;
 import java.util.Objects;
 
 import static com.fizzed.blaze.SecureShells.sshExec;
-import static com.fizzed.blaze.jsync.Jsyncs.jsync;
-import static com.fizzed.blaze.vfs.LocalVirtualVolume.localVolume;
-import static com.fizzed.blaze.vfs.SftpVirtualVolume.sftpVolume;
+import static com.fizzed.blaze.jsync.Jsyncs.*;
 
 public class HostImpl implements Host {
     private final Logger log = Contexts.logger();
@@ -238,38 +236,5 @@ public class HostImpl implements Host {
             .progress()
             .force();
     }
-
-    /*@Override
-    public Exec rsync(String sourcePath, String destPath) {
-        String src = null;
-        String dest = this.relativePath(destPath);
-
-        // is remote?
-        if (this.sshSession != null) {
-            // rsync the project target/output to the target project
-            src = this.host + ":" + this.remotePath(sourcePath, false);
-        } else {
-            // local execute
-            src = this.relativePath(sourcePath);
-        }
-
-        // on windows, we need to fix path to match how "cygwin" does it
-        if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            src = src.replace("C:\\", "/cygdrive/c/");
-        }
-
-        log.debug("Rsyncing {} -> {}", src, dest);
-
-        // -a or -t flags can sometimes cause unexpected file permissions issues
-        Exec exec = Systems.exec("rsync", "-vr", "--delete", "--progress", src, dest);
-
-        if (this.output != null) {
-            // protect against being closed by Exec
-            exec.pipeOutput(new CloseGuardedOutputStream(this.output.getConsoleOutput()));
-            exec.pipeErrorToOutput();
-        }
-
-        return exec;
-    }*/
 
 }
