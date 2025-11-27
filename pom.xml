@@ -47,6 +47,12 @@
 
         <dependency>
             <groupId>com.fizzed</groupId>
+            <artifactId>jsync-sftp</artifactId>
+            <version>1.2.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fizzed</groupId>
             <artifactId>jne</artifactId>
             <version>${jne.version}</version>
         </dependency>
