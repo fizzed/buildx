@@ -49,10 +49,10 @@ public class ProjectImpl implements Project {
             // adding ":z" fixes podman to mount as the user
             // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
             final Exec exec = this.host.exec(this.host.getInfo().resolveContainerExe(), "run",
-                // the working dir becomes the home dir
+                // the working dir becomes the home dir, but on windows it stays as /root for some reason
                 "-v", projectPath + "/.buildx-cache" + ":/root",
-                //"-w", "/buildx-cache",
-                //"-e", "HOME=/buildx-cache",
+                "-w", "/root",
+                "-e", "HOME=/root",
                 "-v", projectPath + ":/project",
                 "--rm",     // make sure container deletes itself after it finishes
                 "--userns=keep-id");
