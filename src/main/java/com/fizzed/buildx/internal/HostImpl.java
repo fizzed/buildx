@@ -120,10 +120,7 @@ public class HostImpl implements Host {
 
         // do we need to fix the path provided?
         if (nativePath) {
-
-            log.debug("hostFileSeparator: {}", this.info.getFileSeparator());
-            log.debug("remoteNativePath BEFORE: {}", remotePath);
-
+            // the remotePath should always use / for its file separator
             remotePath = remotePath.replace("/", this.info.getFileSeparator());
         }
 
