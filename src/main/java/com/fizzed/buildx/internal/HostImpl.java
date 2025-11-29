@@ -107,11 +107,11 @@ public class HostImpl implements Host {
         //return this.relativeDir.resolve(".").resolve(path).normalize().toString();
     }
 
-    public String remotePath(String path) {
-        return this.remotePath(path, true);
+    public String remoteNativePath(String path) {
+        return this.remoteNativePath(path, true);
     }
 
-    public String remotePath(String path, boolean pathSeparatorAdjusted) {
+    public String remoteNativePath(String path, boolean nativePath) {
         if (this.remoteDir == null) {
             throw new RuntimeException("Project is NOT remote (no remoteDir)");
         }
@@ -119,7 +119,11 @@ public class HostImpl implements Host {
         String remotePath = this.remoteDir + "/" + path;
 
         // do we need to fix the path provided?
-        if (pathSeparatorAdjusted) {
+        if (nativePath) {
+
+            log.debug("hostFileSeparator: {}", this.info.getFileSeparator());
+            log.debug("remoteNativePath BEFORE: {}", remotePath);
+
             remotePath = remotePath.replace("/", this.info.getFileSeparator());
         }
 
@@ -128,9 +132,9 @@ public class HostImpl implements Host {
 
     private String sshShellExecScript() {
         if (this.info.getOs() == OperatingSystem.WINDOWS) {
-            return this.remotePath(".buildx/host-exec.bat");
+            return this.remoteNativePath(".buildx/host-exec.bat");
         } else {
-            return this.remotePath(".buildx/host-exec.sh");
+            return this.remoteNativePath(".buildx/host-exec.sh");
         }
     }
 
@@ -223,11 +227,9 @@ public class HostImpl implements Host {
         // is remote?
         if (this.sshSession != null) {
             // rsync the project target/output to the target project
-//            src = this.host + ":" + this.remotePath(sourcePath, false);
-            source = sftpVolume(this.sshSession, this.remotePath(sourcePath, false));
+            source = sftpVolume(this.sshSession, this.remoteNativePath(sourcePath, false));
         } else {
             // local execute
-//            src = this.relativePath(sourcePath);
             source = localVolume(Paths.get(this.relativePath(sourcePath)));
         }
 
