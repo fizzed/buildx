@@ -50,10 +50,10 @@ public class ProjectImpl implements Project {
             // https://stackoverflow.com/questions/75817076/no-matter-what-i-do-podman-is-mounting-volumes-as-root
             final Exec exec = this.host.exec(this.host.getInfo().resolveContainerExe(), "run",
                 // the working dir becomes the home dir
-                "-v", projectPath + "/.buildx-cache" + ":/buildx-cache:z",
-                "-w", "/buildx-cache",
-                "-e", "HOME=/buildx-cache",
-                "-v", projectPath + ":/project:z",
+                "-v", projectPath + "/.buildx-cache" + ":/root",
+                //"-w", "/buildx-cache",
+                //"-e", "HOME=/buildx-cache",
+                "-v", projectPath + ":/project",
                 "--rm",     // make sure container deletes itself after it finishes
                 "--userns=keep-id");
 
