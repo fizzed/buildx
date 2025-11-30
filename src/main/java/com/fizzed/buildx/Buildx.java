@@ -320,18 +320,13 @@ public class Buildx {
                 if (!hostsSynced.contains(host)) {
                     log.info("Syncing project to {}:{}", host, remoteProjectDir);
 
-                    final List<String> ignores = this.ignorePaths.stream()
-                        .map(absProjectDir::resolve)
-                        .map(Path::toString)
-                        .collect(toList());
-
                     jsync(localVolume(absProjectDir), sftpVolume(sshSession, remoteProjectDir), JsyncMode.MERGE)
                         .verbose()
                         .progress()
                         .parents()
                         .force()
                         .delete()
-                        .ignores(ignores)       // ignore will ignore it on both sides (e.g. target on remote side stays once its created)
+                        .ignores(this.ignorePaths)       // ignore will ignore it on both sides (e.g. target on remote side stays once its created)
                         .run();
 
                     // this host is done
