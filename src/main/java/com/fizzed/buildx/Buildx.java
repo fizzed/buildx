@@ -59,11 +59,11 @@ public class Buildx {
         this.resultsFile = null;        // disabled by default
         this.jobExecutor = new OnePerHostParallelJobExecutor();
         this.ignorePaths = new ArrayList<>();
-        this.ignorePaths.add(".git");
-        this.ignorePaths.add(".buildx-cache");
-        this.ignorePaths.add(".buildx-logs");
-        this.ignorePaths.add("target");
-        this.ignorePaths.add(".idea");
+        this.ignorePaths.add(".git/");
+        this.ignorePaths.add(".buildx-cache/");
+        this.ignorePaths.add(".buildx-logs/");
+        this.ignorePaths.add("target/");
+        this.ignorePaths.add(".idea/");
     }
 
     public List<Target> getTargets() {
